@@ -1,0 +1,38 @@
+    chunks layout             workload               cache  open s  read s  requests      MB
+    10,000 enterprise_map     first chunk            cold     0.36    0.01        16    0.20
+    10,000 enterprise_map     first chunk            warm     0.22    0.01         9    0.09
+    10,000 enterprise_map     100 random chunks      cold     0.35    0.01        16    0.20
+    10,000 enterprise_map     100 random chunks      warm     0.23    0.02         9    0.09
+    10,000 enterprise_map     one pixel, all dates   cold     0.34    0.02        16    0.20
+    10,000 enterprise_map     one pixel, all dates   warm     0.26    0.01         9    0.09
+    10,000 enterprise_index   first chunk            cold     0.43    0.01        22    0.22
+    10,000 enterprise_index   first chunk            warm     0.21    0.01         8    0.01
+    10,000 enterprise_index   100 random chunks      cold     0.41    0.05        22    0.22
+    10,000 enterprise_index   100 random chunks      warm     0.21    0.04         8    0.01
+    10,000 enterprise_index   one pixel, all dates   cold     0.40    0.02        22    0.22
+    10,000 enterprise_index   one pixel, all dates   warm     0.22    0.02         8    0.01
+   102,400 enterprise_map     first chunk            cold     0.59    0.01        25    1.10
+   102,400 enterprise_map     first chunk            warm     0.24    0.01         9    0.86
+   102,400 enterprise_map     100 random chunks      cold     0.41    0.04        21    1.16
+   102,400 enterprise_map     100 random chunks      warm     0.30    0.01         9    0.86
+   102,400 enterprise_map     one pixel, all dates   cold     0.38    0.07        21    1.16
+   102,400 enterprise_map     one pixel, all dates   warm     0.27    0.01         9    0.86
+   102,400 enterprise_index   first chunk            cold     0.48    0.07        35    0.71
+   102,400 enterprise_index   first chunk            warm     0.21    0.01         8    0.01
+   102,400 enterprise_index   100 random chunks      cold     0.46    0.22        77    2.12
+   102,400 enterprise_index   100 random chunks      warm     0.21    0.04         8    0.01
+   102,400 enterprise_index   one pixel, all dates   cold     0.48    0.19        77    2.12
+   102,400 enterprise_index   one pixel, all dates   warm     0.21    0.02         8    0.01
+ 1,000,000 enterprise_map     first chunk            cold     0.86    0.03        32    8.59
+ 1,000,000 enterprise_map     first chunk            warm     0.52    0.01        11    8.26
+ 1,000,000 enterprise_map     100 random chunks      cold     0.68    0.10        66    9.97
+ 1,000,000 enterprise_map     100 random chunks      warm     0.48    0.01        11    8.26
+ 1,000,000 enterprise_map     one pixel, all dates   cold     0.65    0.12        68   10.04
+ 1,000,000 enterprise_map     one pixel, all dates   warm     0.49    0.02        11    8.26
+ 1,000,000 enterprise_index   first chunk            cold     0.47    0.11        46    1.04
+ 1,000,000 enterprise_index   first chunk            warm     0.21    0.01         8    0.01
+ 1,000,000 enterprise_index   100 random chunks      cold     0.48    0.41       466   15.08
+ 1,000,000 enterprise_index   100 random chunks      warm     0.22    0.04         8    0.01
+ 1,000,000 enterprise_index   one pixel, all dates   cold     0.46    0.54       590   19.22
+ 1,000,000 enterprise_index   one pixel, all dates   warm     0.21    0.02         8    0.01
+exit 0

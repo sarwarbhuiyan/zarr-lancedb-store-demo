@@ -1,0 +1,14 @@
+{
+  "10000000": {
+    "chunks": 9985600,
+    "lance": {
+      "write_s": 18.9,
+      "index_s": 1.5,
+      "rows": 9985602,
+      "fragments": 10,
+      "index_files": 2,
+      "index_bytes": 130056983,
+      "uses_btree": true
+    }
+  }
+}

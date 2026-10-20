@@ -1,0 +1,7 @@
+    chunks layout                 workload                open s  read s total s  requests      MB
+ 9,985,600 lance_map              first chunk               2.69    0.05    2.73        76   90.18
+ 9,985,600 lance_map              100 random chunks         2.52    0.11    2.63       226   91.90
+ 9,985,600 lance_map              one pixel, all dates      2.56    0.16    2.72       297   91.10
+ 9,985,600 lance_index            first chunk               0.25    0.12    0.37        25    0.46
+ 9,985,600 lance_index            100 random chunks         0.26    0.31    0.57       514    9.39
+ 9,985,600 lance_index            one pixel, all dates      0.26    0.41    0.66       615    7.95

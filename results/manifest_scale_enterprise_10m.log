@@ -1,0 +1,13 @@
+    chunks layout             workload               cache  open s  read s  requests      MB
+ 9,985,600 enterprise_map     first chunk            cold     5.03    0.08       102   90.67
+ 9,985,600 enterprise_map     first chunk            warm     3.95    0.00        37   89.33
+ 9,985,600 enterprise_map     100 random chunks      cold     4.17    0.20       345   99.07
+ 9,985,600 enterprise_map     100 random chunks      warm     4.15    0.02        37   89.33
+ 9,985,600 enterprise_map     one pixel, all dates   cold     4.32    0.27       437  102.14
+ 9,985,600 enterprise_map     one pixel, all dates   warm     3.96    0.01        37   89.33
+ 9,985,600 enterprise_index   first chunk            cold     0.51    0.16        60    1.47
+ 9,985,600 enterprise_index   first chunk            warm     0.22    0.01         8    0.01
+ 9,985,600 enterprise_index   100 random chunks      cold     0.52    0.61      1182   38.58
+ 9,985,600 enterprise_index   100 random chunks      warm     0.21    0.05         8    0.01
+ 9,985,600 enterprise_index   one pixel, all dates   cold     0.52    0.69      1274   41.66
+ 9,985,600 enterprise_index   one pixel, all dates   warm     0.22    0.02         8    0.01

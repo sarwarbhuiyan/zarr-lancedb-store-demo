@@ -1,0 +1,13 @@
+    chunks layout             workload               cache  open s  read s  requests      MB
+ 1,000,000 enterprise_index   first chunk            cold     0.76    0.12        55    1.05
+ 1,000,000 enterprise_index   first chunk            warm     0.21    0.01         8    0.01
+ 1,000,000 enterprise_index   100 random chunks      cold     0.44    0.39       466   15.08
+ 1,000,000 enterprise_index   100 random chunks      warm     0.20    0.04         8    0.01
+ 1,000,000 enterprise_index   one pixel, all dates   cold     0.46    0.51       590   19.22
+ 1,000,000 enterprise_index   one pixel, all dates   warm     0.22    0.02         8    0.01
+ 9,985,600 enterprise_index   first chunk            cold     0.72    0.18        68    1.48
+ 9,985,600 enterprise_index   first chunk            warm     0.20    0.01         8    0.01
+ 9,985,600 enterprise_index   100 random chunks      cold     0.53    0.61      1182   38.58
+ 9,985,600 enterprise_index   100 random chunks      warm     0.22    0.04         8    0.01
+ 9,985,600 enterprise_index   one pixel, all dates   cold     0.53    0.66      1274   41.66
+ 9,985,600 enterprise_index   one pixel, all dates   warm     0.22    0.02         8    0.01

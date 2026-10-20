@@ -6,8 +6,11 @@ Lance Blob V2 column).
 
 What it maps onto Lance:
 - reads: concurrent `get` calls issued by zarr in the same event-loop tick are batched
-  into one Lance `take`, resolved through a key -> row map built when the store opens, the
-  way Icechunk loads its manifest.
+  into one Lance read. With `key_lookup="map"` (the default) keys resolve through a key -> row
+  map built when the store opens, the way Icechunk loads its manifest. With
+  `key_lookup="index"` nothing is read at open: each batch is one `key IN (...)` filter
+  answered by a BTREE on `key` (`create_key_index`), so the cost of a read does not grow
+  with the number of keys in the table.
 - byte ranges: with a Blob V2 value column, every read is a blob byte range. A `BlobFile`
   handle per row is opened at load from the blob descriptors, so a ranged read (how Zarr
   sharding reads a shard index and then its chunks) is one object-store request.
@@ -40,6 +43,7 @@ from zarr.core.buffer import Buffer, BufferPrototype
 from lance_zarr.batching import TickBatcher
 
 ValueEncoding = Literal["binary", "blob"]
+KeyLookup = Literal["map", "index"]
 _DELETED = object()
 
 
@@ -100,6 +104,7 @@ class LanceStore(Store):
         flush_bytes: int = 256 * 1024 * 1024,
         autocommit: bool = False,
         blob_read_threads: int = 16,
+        key_lookup: KeyLookup = "map",
     ) -> None:
         super().__init__(read_only=read_only or version is not None)
         self.uri = uri
@@ -109,6 +114,7 @@ class LanceStore(Store):
         self.flush_bytes = flush_bytes
         self.autocommit = autocommit
         self.blob_read_threads = blob_read_threads
+        self.key_lookup = key_lookup
         self._blob_pool = ThreadPoolExecutor(max_workers=blob_read_threads)
         self._blob_files: dict[int, lance.BlobFile | None] = {}
         self.stats = _Stats()
@@ -123,27 +129,30 @@ class LanceStore(Store):
 
     # ---- dataset state -------------------------------------------------------------
 
-    def _exists_on_storage(self) -> bool:
+    def _open_dataset(self) -> lance.LanceDataset | None:
+        """The dataset at `version`, or None when nothing has been written yet."""
         if "://" not in self.uri:
-            return os.path.isdir(self.uri)
+            if not os.path.isdir(self.uri):
+                return None
+            return lance.dataset(self.uri, version=self.version, storage_options=self.storage_options)
         try:
-            lance.dataset(self.uri, storage_options=self.storage_options)
-            return True
+            ds = lance.dataset(self.uri, storage_options=self.storage_options)
         except (ValueError, OSError, FileNotFoundError):
-            return False
+            return None
+        return ds if self.version is None else ds.checkout_version(self.version)
 
     def _load(self) -> None:
-        if not self._exists_on_storage():
-            self._ds, self._index, self._blob_sizes, self._blob_files = None, {}, [], {}
+        self._ds = self._open_dataset()
+        self._index, self._blob_sizes, self._blob_files = {}, [], {}
+        if self._ds is None:
             return
-        self._ds = lance.dataset(self.uri, version=self.version, storage_options=self.storage_options)
-        self._blob_files = {}
         if "value" in self._ds.schema.names:
             vtype = self._ds.schema.field("value").type
             is_blob = isinstance(vtype, pa.ExtensionType) and "blob" in vtype.extension_name
             self.value_encoding = "blob" if is_blob else "binary"
+        if self.key_lookup == "index":
+            return
         table = self._ds.to_table(columns=["key"])
-        self._blob_sizes = []
         if self.value_encoding == "blob" and table.num_rows:
             # One BlobFile per row, opened from the blob descriptors in one read. Each handle
             # knows its blob's location and size, so every later byte range is one request.
@@ -212,7 +221,7 @@ class LanceStore(Store):
             self._ds.delete(f"key IN ({quoted})")
 
     def create_key_index(self) -> None:
-        """A BTREE on `key`, used by filter-based lookups (`exists` on unseen keys, debugging)."""
+        """A BTREE on `key`; `key_lookup="index"` reads through it."""
         if self._ds is not None:
             self._ds.create_scalar_index("key", "BTREE", replace=True)
 
@@ -244,6 +253,9 @@ class LanceStore(Store):
     def _fetch_batch(self, requests: list[tuple[str, ByteRequest | None]]) -> list[bytes | None]:
         """Resolve a batch of keys: one Lance take, or blob byte ranges from cached handles."""
         out: list[bytes | None] = [None] * len(requests)
+        if self.key_lookup == "index":
+            self._fetch_by_index(requests, out)
+            return out
         rows = [(i, self._index.get(k), r) for i, (k, r) in enumerate(requests)]
         present = [(i, row, r) for i, row, r in rows if row is not None]
         if not present or self._ds is None:
@@ -257,6 +269,41 @@ class LanceStore(Store):
         for (i, _, r), v in zip(present, table.column("value").to_pylist()):
             out[i] = None if v is None else _slice(v, r)
         return out
+
+    @staticmethod
+    def _key_filter(keys: Iterable[str]) -> str:
+        return "key IN (" + ",".join("'" + k.replace("'", "''") + "'" for k in keys) + ")"
+
+    def _fetch_by_index(self, requests: list[tuple[str, ByteRequest | None]], out: list) -> None:
+        """One BTREE-filtered read for the batch; blob values then read by byte range."""
+        if self._ds is None:
+            return
+        keys = list(dict.fromkeys(k for k, _ in requests))
+        self.stats.lance_reads += 1
+        if self.value_encoding == "binary":
+            table = self._ds.to_table(columns=["key", "value"], filter=self._key_filter(keys))
+            found = dict(zip(table.column("key").to_pylist(), table.column("value").to_pylist()))
+            self.stats.keys_read += len(found)
+            for i, (k, r) in enumerate(requests):
+                v = found.get(k)
+                out[i] = None if v is None else _slice(v, r)
+            return
+        table = self._ds.to_table(columns=["key"], filter=self._key_filter(keys), with_row_id=True)
+        rows = dict(zip(table.column("key").to_pylist(), table.column("_rowid").to_pylist()))
+        self.stats.keys_read += len(rows)
+        ids = list(rows.values())
+        files = dict(zip(ids, self._ds.take_blobs("value", ids=ids))) if ids else {}
+
+        def read(item: tuple[int, tuple[str, ByteRequest | None]]) -> tuple[int, bytes | None]:
+            i, (k, r) = item
+            f = files.get(rows.get(k))
+            if f is None:
+                return i, None
+            start, length = _blob_range(r, f.size())
+            return i, b"" if length <= 0 else bytes(f.read_ranges([(start, length)])[0])
+
+        for i, b in self._blob_pool.map(read, enumerate(requests)):
+            out[i] = b
 
     def _read_blob_ranges(self, present: list[tuple[int, int, ByteRequest | None]], out: list) -> None:
         # Dataset.read_blob_ranges re-reads the blob descriptors on every call, a second
@@ -293,7 +340,7 @@ class LanceStore(Store):
             if key in staged:
                 v = staged[key]
                 return None if v is _DELETED else prototype.buffer.from_bytes(_slice(v, byte_range))
-        if key not in self._index:
+        if self.key_lookup == "map" and key not in self._index:
             return None
         data = await self._batcher.submit((key, byte_range))
         return None if data is None else prototype.buffer.from_bytes(data)
@@ -307,12 +354,19 @@ class LanceStore(Store):
         for staged in (self._buffer, self._inflight):
             if key in staged:
                 return staged[key] is not _DELETED
+        if self.key_lookup == "index":
+            if self._ds is None:
+                return False
+            return await asyncio.to_thread(self._ds.count_rows, self._key_filter([key])) > 0
         return key in self._index
 
     # ---- listing -------------------------------------------------------------------
 
     def _all_keys(self) -> list[str]:
-        keys = set(self._index)
+        if self.key_lookup == "index" and self._ds is not None:
+            keys = set(self._ds.to_table(columns=["key"]).column("key").to_pylist())
+        else:
+            keys = set(self._index)
         for k, v in [*self._inflight.items(), *self._buffer.items()]:
             if v is _DELETED:
                 keys.discard(k)
@@ -347,6 +401,7 @@ class LanceStore(Store):
             self.uri, read_only=read_only, version=self.version,
             value_encoding=self.value_encoding, storage_options=self.storage_options,
             autocommit=self.autocommit, blob_read_threads=self.blob_read_threads,
+            key_lookup=self.key_lookup,
         )
 
     def __getstate__(self) -> dict:
@@ -354,7 +409,7 @@ class LanceStore(Store):
             "uri": self.uri, "read_only": self.read_only, "version": self.version,
             "value_encoding": self.value_encoding, "storage_options": self.storage_options,
             "flush_bytes": self.flush_bytes, "autocommit": self.autocommit,
-            "blob_read_threads": self.blob_read_threads,
+            "blob_read_threads": self.blob_read_threads, "key_lookup": self.key_lookup,
         }
 
     def __setstate__(self, state: dict) -> None:

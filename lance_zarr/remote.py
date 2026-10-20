@@ -79,7 +79,9 @@ def _sql_in(keys: Iterable[str]) -> str:
 class LanceDBStore(Store):
     """A Zarr store over a `key`/`value` table (the `LanceStore` layout) served by LanceDB Enterprise.
 
-    Read-only stores pin a version and read with REST takes by row ID. Writable stores buffer
+    Read-only stores pin a version and read with REST takes by row ID, resolved through a key map
+    scanned at open; with `key_lookup="index"` nothing is scanned at open and each batch of reads
+    is one `key IN (...)` query, answered by the table's BTREE on `key`. Writable stores buffer
     `set`/`delete` and `commit()` them as one REST `merge_insert` on `key` plus one delete. With
     `use_lsm=True` the merge goes through Enterprise's MemWAL: the table gets an unenforced primary
     key on `key` and an LSM write spec, writes land in the WAL shard instead of creating a Lance
@@ -94,19 +96,25 @@ class LanceDBStore(Store):
 
     def __init__(self, table: str, *, database: str, host: str, api_key: str, read_only: bool = True,
                  version: int | str | None = None, use_lsm: bool = False, flush_bytes: int = 256 * 1024 * 1024,
-                 region: str = DEFAULT_REGION, blob_read_threads: int = 16) -> None:
+                 region: str = DEFAULT_REGION, blob_read_threads: int = 16, key_lookup: str = "map") -> None:
         super().__init__(read_only=read_only or version is not None)
         self.table_name, self.database, self.host, self.api_key, self.region = table, database, host, api_key, region
         self.use_lsm, self.flush_bytes, self.requested_version = use_lsm, flush_bytes, version
+        self.key_lookup = key_lookup
         db = lancedb.connect(f"db://{database}", host_override=host, api_key=api_key, region=region)
-        if table not in db.list_tables().tables:
-            if self.read_only:
-                raise FileNotFoundError(f"table {database}/{table} does not exist")
+        # Listing tables makes the query node list the database in object storage, so a
+        # read-only store opens the table directly.
+        if not self.read_only and table not in db.list_tables().tables:
             db.create_table(table, schema=_LSM_SCHEMA if use_lsm else _SCHEMA)
-        self._tbl = db.open_table(table)
+        try:
+            self._tbl = db.open_table(table)
+        except ValueError as e:
+            raise FileNotFoundError(f"table {database}/{table} does not exist") from e
         self._blob = "value" in self._tbl.blob_columns()
         if self._blob and (use_lsm or not self.read_only):
             raise NotImplementedError("Blob V2 value columns are read-only through this store")
+        if self._blob and key_lookup == "index":
+            raise NotImplementedError("key_lookup='index' reads binary value columns only")
         self.blob_read_threads = blob_read_threads
         self._blob_pool = ThreadPoolExecutor(max_workers=blob_read_threads)
         if use_lsm and self._tbl.get_lsm_write_spec() is None:
@@ -127,6 +135,10 @@ class LanceDBStore(Store):
             if self.requested_version is None:
                 self._tbl.checkout_latest()
             self._tbl.checkout(self._tbl.version if self.requested_version is None else self.requested_version)
+            if self.key_lookup == "index":
+                self._index = {}
+                self.version = self._tbl.version
+                return
             keys = scan_with_row_ids(self._tbl, ["key"])
             self._index = dict(zip(keys.column("key").to_pylist(), keys.column("_rowid").to_pylist()))
             if self._blob:
@@ -151,7 +163,7 @@ class LanceDBStore(Store):
         if self._blob:
             return list(self._blob_pool.map(self._read_blob, requests))
         keys = list(dict.fromkeys(k for k, _ in requests))
-        if self.use_lsm:
+        if self.use_lsm or self.key_lookup == "index":
             got = (self._tbl.search().where(f"key IN ({_sql_in(keys)})").select(["key", "value"])
                    .limit(len(keys)).to_arrow())
             values = dict(zip(got.column("key").to_pylist(), got.column("value").to_pylist()))
@@ -167,7 +179,7 @@ class LanceDBStore(Store):
         if key in self._buffer:
             v = self._buffer[key]
             return None if v is _DELETED else prototype.buffer.from_bytes(_slice(v, byte_range))
-        if key not in self._index:
+        if self.key_lookup == "map" and key not in self._index:
             return None
         data = await self._batcher.submit((key, byte_range))
         return None if data is None else prototype.buffer.from_bytes(data)
@@ -179,6 +191,8 @@ class LanceDBStore(Store):
     async def exists(self, key: str) -> bool:
         if key in self._buffer:
             return self._buffer[key] is not _DELETED
+        if self.key_lookup == "index":
+            return await asyncio.to_thread(self._tbl.count_rows, f"key IN ({_sql_in([key])})") > 0
         return key in self._index
 
     # ---- writes --------------------------------------------------------------------
@@ -242,7 +256,10 @@ class LanceDBStore(Store):
     # ---- listing -------------------------------------------------------------------
 
     def _all_keys(self) -> list[str]:
-        keys = dict.fromkeys(self._index)
+        if self.key_lookup == "index":
+            keys = dict.fromkeys(scan_with_row_ids(self._tbl, ["key"]).column("key").to_pylist())
+        else:
+            keys = dict.fromkeys(self._index)
         for k, v in self._buffer.items():
             if v is _DELETED:
                 keys.pop(k, None)
@@ -273,7 +290,7 @@ class LanceDBStore(Store):
         return LanceDBStore(self.table_name, database=self.database, host=self.host, api_key=self.api_key,
                             read_only=read_only, version=self.requested_version, use_lsm=self.use_lsm,
                             flush_bytes=self.flush_bytes, region=self.region,
-                            blob_read_threads=self.blob_read_threads)
+                            blob_read_threads=self.blob_read_threads, key_lookup=self.key_lookup)
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, LanceDBStore) and (other.host, other.database, other.table_name, other.version) == (

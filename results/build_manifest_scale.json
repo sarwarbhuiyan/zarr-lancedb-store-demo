@@ -1,0 +1,56 @@
+{
+  "10000": {
+    "chunks": 10000,
+    "lance": {
+      "write_s": 0.1,
+      "index_s": 0.1,
+      "rows": 10002,
+      "fragments": 1,
+      "index_files": 2,
+      "index_bytes": 101071,
+      "uses_btree": true
+    },
+    "icechunk": {
+      "write_s": 8.9,
+      "objects": 10040,
+      "manifest_files": 22,
+      "manifest_bytes": 781149
+    }
+  },
+  "100000": {
+    "chunks": 102400,
+    "lance": {
+      "write_s": 0.2,
+      "index_s": 0.0,
+      "rows": 102402,
+      "fragments": 1,
+      "index_files": 2,
+      "index_bytes": 1049112,
+      "uses_btree": true
+    },
+    "icechunk": {
+      "write_s": 89.9,
+      "objects": 102605,
+      "manifest_files": 187,
+      "manifest_bytes": 7798484
+    }
+  },
+  "1000000": {
+    "chunks": 1000000,
+    "lance": {
+      "write_s": 1.9,
+      "index_s": 0.2,
+      "rows": 1000002,
+      "fragments": 1,
+      "index_files": 2,
+      "index_bytes": 10610934,
+      "uses_btree": true
+    },
+    "icechunk": {
+      "write_s": 1047.1,
+      "objects": 1001129,
+      "manifest_files": 1111,
+      "manifest_bytes": 76050261
+    }
+  }
+}

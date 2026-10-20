@@ -15,14 +15,18 @@ from lance_zarr import LanceStore
 from lance_zarr.store import _schema
 
 
+@pytest.mark.parametrize("key_lookup", ["map", "index"], indirect=False)
 @pytest.mark.parametrize("encoding", ["binary", "blob"], indirect=False)
 class TestLanceStore(StoreTests[LanceStore, cpu.Buffer]):
     store_cls = LanceStore
     buffer_cls = cpu.Buffer
 
     @pytest.fixture
-    def store_kwargs(self, tmp_path, encoding):
-        return {"uri": str(tmp_path / "store.lance"), "value_encoding": encoding, "autocommit": True}
+    def store_kwargs(self, tmp_path, encoding, key_lookup):
+        return {
+            "uri": str(tmp_path / "store.lance"), "value_encoding": encoding, "autocommit": True,
+            "key_lookup": key_lookup,
+        }
 
     async def set(self, store: LanceStore, key: str, value: Buffer) -> None:
         values = [value.to_bytes()]

@@ -56,6 +56,15 @@ not show.
   referenced, because the query node serves blob byte ranges itself. ENT-3108 tracks serving them
   through the plan executor's cache and ENT-3100 batching them. Until then, chunks that need the
   cache belong in a `large_binary` column.
+- **Finding one chunk in a 10-million-chunk array does not need the whole key list.** Icechunk
+  reads an array's whole manifest before its first chunk unless the manifest is split: 18.5 MB
+  at 1 million chunks here, about 18 bytes per chunk. `LanceStore(key_lookup="index")` answers
+  each read from a BTREE on `key` instead: 0.26 MB for the first chunk at 1 million chunks and
+  0.46 MB at 10 million, with nothing to configure. From a cold process on this rig that is not
+  faster (0.33 s against 0.26 s at 1 million), because Lance opens with more round trips.
+  Through LanceDB Enterprise, where the index pages stay in the shared cache, a new process read
+  any chunk of the 10-million-chunk array in 10 to 50 ms with no object-store requests; Icechunk
+  caches manifests per process only, so every new process fetches them again.
 - **Two Lance gaps showed up, both with clear paths.** Format 2.2 compresses scalar, binary and
   string columns, but never fixed-size lists, the type a tensor or chip column uses;
   [lance-format/lance#5021](https://github.com/lance-format/lance/issues/5021) covers it.
@@ -74,6 +83,7 @@ not show.
 | [demo/dual_table.py](demo/dual_table.py) | The Gemini dual-table design built for real: a per-pixel LanceDB table plus Zarr chunks in Lance |
 | [demo/reference_zarr.py](demo/reference_zarr.py) | An existing plain Zarr store served through `LanceStore` by reference, plus re-indexing after an append |
 | [bench/](bench/) | Layout builder, read workloads, report generator, and the diagnostics quoted below |
+| [bench/manifest_scale.py](bench/manifest_scale.py) | One chunk out of 10 thousand to 10 million: Icechunk manifests, split or not, against Lance key lookups |
 | [scripts/](scripts/) | MinIO and toxiproxy up and down, LanceDB Enterprise over the MinIO bucket, and a latency proxy that counts requests |
 | [results/](results/) | Raw JSON and text output behind every number in this README |
 
@@ -83,8 +93,10 @@ not show.
   Zarr key, such as `rgb_nir/c/3/0/1/2`, so time, band and chunk position never collide.
 - **Reads.** zarr-python issues one `get` per chunk, with up to `async.concurrency` in flight.
   The store collects every `get` from the same event-loop tick and resolves them with one Lance
-  `take`. A key-to-row map is built when the store opens, the same way Icechunk loads its
-  manifest.
+  `take`. By default a key-to-row map is built when the store opens, the same way Icechunk
+  loads its manifest. With `key_lookup="index"` nothing is read at open: each batch is one
+  `key IN (...)` filter, answered by a BTREE on `key` (`create_key_index()`), so a read costs
+  the same whether the table holds ten thousand keys or ten million.
 - **Byte ranges.** With a binary value column, the store reads the value and slices it. With a
   Blob V2 value column, every read is a blob byte range. When the store opens, it opens one
   `BlobFile` handle per row from the blob descriptors in a single read. Each handle knows its
@@ -96,7 +108,8 @@ not show.
 - **Snapshots.** `tag(name)` tags the current version. `LanceStore(uri, version="name")` opens it
   read-only.
 
-Test status: `pytest tests` gives 129 passed and 26 skipped. The skipped tests cover optional
+Test status: `pytest tests` gives 257 passed and 52 skipped; the conformance suite runs for
+both value encodings and both key lookups. The skipped tests cover optional
 synchronous store methods that zarr-python does not require.
 
 ## `LanceTensorStore`: the Zarr API without Zarr chunks
@@ -503,6 +516,101 @@ binary (`large_binary`) and tensor columns get the cache today. ENT-3108 tracks 
 routes through the plan executor so Blob V2 reads are cached too; until it lands, chunks that need
 the cache belong in a `large_binary` column.
 
+## Millions of chunks: reading one without the whole manifest
+
+Icechunk's documentation warns that for arrays past about a million chunks, "requesting even a
+single chunk will require downloading the entire manifest," unless the manifest is split by a
+splitting configuration chosen per array and dimension.
+[bench/manifest_scale.py](bench/manifest_scale.py) measures that against Lance. Each array is
+100 dates of uint8 chunks of 32 × 32 with no compression, at 10,000, 102,400, 1,000,000 and
+9,985,600 chunks, with the same chunk bytes written to:
+
+- an Icechunk repository, committed unsplit and re-split with `rewrite_manifests` on three
+  branches: by time (every 10 dates), by space (10 × 10 chunk tiles holding every date), and
+  on every axis (every 10 chunks);
+- a Lance table with one row per Zarr key and a BTREE on `key`, read through `LanceStore` with
+  the key map built at open and with `key_lookup="index"`, and through LanceDB Enterprise with
+  `LanceDBStore(key_lookup="index")`.
+
+Every read runs in a new process, so nothing is cached client-side, through the counting proxy
+with 20 ms per response. Times are the median of three runs and include opening the store and
+the array. Enterprise reads MinIO through the same proxy; "cold" restarts the plan executor with
+empty caches, "warm" is a new client process after a cold one. Every read was checked against the
+bytes written. The 10-million-chunk array was built for Lance only: Icechunk writes one object per
+chunk, and the 1-million-chunk repository already took 17 minutes and 1,001,129 objects to write
+on this rig ([results/build_manifest_scale.json](results/build_manifest_scale.json)).
+
+**The first chunk from a new process**: seconds, object-store requests, MB
+([results/manifest_scale.json](results/manifest_scale.json), [10M](results/manifest_scale_10m.json),
+[Enterprise](results/manifest_scale_enterprise.json), [Enterprise 10M](results/manifest_scale_enterprise_10m.json)):
+
+| Layout | 10,000 chunks | 102,400 | 1,000,000 | 9,985,600 |
+|---|---|---|---|---|
+| Icechunk, unsplit | 0.12 s, 7, 0.21 MB | 0.14 s, 7, 1.92 MB | 0.26 s, 8, 18.5 MB | not built |
+| Icechunk, split by time | 0.12 s, 7, 0.03 MB | 0.13 s, 7, 0.20 MB | 0.15 s, 7, 1.85 MB | not built |
+| Icechunk, split by space | 0.13 s, 7, 0.21 MB | 0.14 s, 7, 0.21 MB | 0.14 s, 7, 0.21 MB | not built |
+| Icechunk, split on every axis | 0.12 s, 7, 0.03 MB | 0.15 s, 7, 0.03 MB | 0.30 s, 7, 0.06 MB | not built |
+| Lance, key map at open | 0.21 s, 8, 0.17 MB | 0.24 s, 9, 0.95 MB | 0.38 s, 13, 8.4 MB | 2.73 s, 76, 90.2 MB |
+| Lance, BTREE | 0.29 s, 12, 0.32 MB | 0.30 s, 18, 0.23 MB | 0.33 s, 20, 0.26 MB | 0.37 s, 25, 0.46 MB |
+| Enterprise, BTREE, cold | 0.44 s, 22, 0.22 MB | 0.55 s, 35, 0.71 MB | 0.58 s, 46, 1.04 MB | 0.67 s, 60, 1.47 MB |
+| Enterprise, BTREE, warm | 0.22 s, 8, 0.01 MB | 0.22 s, 8, 0.01 MB | 0.22 s, 8, 0.01 MB | 0.23 s, 8, 0.01 MB |
+
+**Three reads at 1,000,000 chunks** (Lance and Enterprise also at 9,985,600):
+
+| Layout | First chunk | 100 random chunks | One pixel, all 100 dates |
+|---|---|---|---|
+| Icechunk, unsplit | 0.26 s, 8, 18.5 MB | 0.29 s, 107, 18.6 MB | 0.29 s, 107, 18.6 MB |
+| Icechunk, split by time | 0.15 s, 7, 1.85 MB | 0.21 s, 115, 18.6 MB | 0.23 s, 115, 18.6 MB |
+| Icechunk, split by space | 0.14 s, 7, 0.21 MB | 0.23 s, 170, 13.0 MB | 0.21 s, 106, 0.37 MB |
+| Icechunk, split on every axis | 0.30 s, 7, 0.06 MB | 0.36 s, 202, 2.17 MB | 0.38 s, 115, 0.41 MB |
+| Lance, key map at open | 0.38 s, 13, 8.4 MB | 0.40 s, 18, 11.1 MB | 0.43 s, 19, 11.2 MB |
+| Lance, BTREE | 0.33 s, 20, 0.26 MB | 0.40 s, 113, 9.9 MB | 0.50 s, 178, 11.0 MB |
+| Lance, BTREE, 10M chunks | 0.37 s, 25, 0.46 MB | 0.57 s, 514, 9.4 MB | 0.66 s, 615, 8.0 MB |
+| Enterprise, BTREE, cold | 0.58 s, 46, 1.04 MB | 0.89 s, 466, 15.1 MB | 1.00 s, 590, 19.2 MB |
+| Enterprise, BTREE, warm | 0.22 s, 8, 0.01 MB | 0.26 s, 8, 0.01 MB | 0.23 s, 8, 0.01 MB |
+| Enterprise, BTREE, warm, 10M chunks | 0.23 s, 8, 0.01 MB | 0.26 s, 8, 0.01 MB | 0.24 s, 8, 0.01 MB |
+
+What the numbers say:
+
+- **An unsplit Icechunk manifest grows with the array, and every new process reads all of it.**
+  0.21, 1.92 and 18.5 MB before the first chunk, about 18 bytes per chunk. At that rate a
+  10-million-chunk array would need about 185 MB; on this rig 18.5 MB added about 0.12 s, so that
+  would be about 1.2 s more per process (a projection; that repository was not built).
+- **Splitting fixes it for the reads the split matches.** Split by space, any one chunk costs
+  0.21 MB, but 100 scattered chunks pull 13 MB of manifests. Split by time, one pixel's history
+  pulls every split. Splitting on every axis keeps all three reads small, at 1,000 manifests and
+  up to 202 requests for 100 chunks, and a slower open (0.25 s at 1 million chunks).
+- **The BTREE needs no setting, and its cost stays flat.** The first chunk read 0.32, 0.23, 0.26
+  and 0.46 MB across a thousandfold growth in chunks. It is not faster than Icechunk from a cold
+  process on this rig: the first chunk takes 12 to 25 requests through Lance against Icechunk's
+  7 or 8, most of them opening the dataset, the index and the data files, so at 20 ms a request
+  the BTREE path costs about 0.3 s. Lance's own counters
+  report 3 requests to resolve `zarr.json` and 2 per chunk; the rest are file opens.
+- **A point lookup reads a whole BTREE page.** Pages hold 4,096 keys, about 100 KB, so 100
+  scattered chunks read about 10 MB of index pages. That cost follows the number of lookups, not
+  the size of the array.
+- **The key map at open behaves like an unsplit manifest**: 90 MB and 2.7 s at 10 million
+  chunks. Lance's key column is about half the size of Icechunk's manifest for the same array.
+- **Through Enterprise, the cost of finding a chunk disappears once the cache is warm.** The BTREE
+  pages and rows stay in the plan executor's cache, shared by every reader. A new process read one
+  chunk in 10 ms, 100 scattered chunks in 40 to 50 ms and a 100-date pixel history in 20 ms, with no
+  object-store requests, the same at 10 thousand and 10 million chunks. Icechunk caches manifests
+  in the process, so a new worker or agent process fetches them again. Opening through Enterprise
+  costs about 0.2 s and 8 small object-store requests at any size; a 60-second read-consistency
+  interval did not change that ([results](results/manifest_scale_enterprise_weak.json)).
+- **Cold reads through Enterprise are the slowest here.** The plan executor's disk cache fetches
+  misses in 32 KiB requests, the issue described above: 466 requests for 100 random chunks at
+  1 million chunks.
+
+Two changes in the stores came out of this. `LanceStore` opens its dataset once instead of twice,
+and a read-only `LanceDBStore` no longer lists the database's tables to check that its table
+exists. The query node answers that listing from object storage, and dropping it cut a warm open
+from 18 requests to 8.
+
+The chunks here are 1 KB so that 10 million fit on a laptop, which makes every chunk read pure
+latency and flatters layouts that pack chunks into few objects; real chunks are hundreds of times
+larger. The manifest and index bytes do not depend on chunk size.
+
 ## Lance gaps and development paths
 
 ### Fixed-size lists are not compressed in format 2.2
@@ -623,6 +731,19 @@ uv run python build.py --target s3 --layouts zarr_small lance_ref_small lance_re
 uv run python run.py --target s3 --repeats 2 --concurrency 64 --tag _minio_ref --layouts \
   icechunk_small zarr_small lance_small lance_ref_small zarr_sharded lance_sharded_blob lance_ref_sharded
 uv run python run_enterprise.py --layouts ent_ref_small lance_ref_small --tag _ref_small
+
+# millions of chunks: Icechunk manifests against Lance key lookups (the 1M Icechunk build takes ~17 min)
+uv run python manifest_scale.py build 10000 100000 1000000
+uv run python manifest_scale.py build --lance-only 10000000
+PROXY_COUNT_FILE=../results/proxy_counts_manifest_scale.txt \
+  uv run python ../scripts/latency_proxy.py --listen 127.0.0.1:19002 --upstream 127.0.0.1:19000 &
+export PROXY_COUNT_FILE=../results/proxy_counts_manifest_scale.txt
+uv run python manifest_scale.py run --proxy http://127.0.0.1:19002 10000 100000 1000000
+uv run python manifest_scale.py run --proxy http://127.0.0.1:19002 --layouts lance_map,lance_index \
+  --name manifest_scale_10m 10000000
+bash ../scripts/enterprise.sh stop && S3_ENDPOINT=http://127.0.0.1:19002 bash ../scripts/enterprise.sh start
+uv run python manifest_scale.py run-enterprise 10000 100000 1000000
+uv run python manifest_scale.py run-enterprise --name manifest_scale_enterprise_10m 10000000
 bash ../scripts/enterprise.sh stop
 bash ../scripts/s3_down.sh
 ```
