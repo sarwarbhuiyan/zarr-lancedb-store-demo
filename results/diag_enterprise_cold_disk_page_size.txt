@@ -1,0 +1,22 @@
+== disk cache page size 262144
+-- aoi_20x_100px_all_dates
+ent_small cold                  562 requests   147.7 MB    1.71 s
+ent_small warm                    0 requests     0.0 MB    0.47 s
+ent_tensor cold                 827 requests   215.3 MB    2.13 s
+ent_tensor warm                   0 requests     0.0 MB    0.65 s
+-- full_date_14x1024x1024
+ent_small cold                   68 requests    17.9 MB    0.24 s
+ent_small warm                    0 requests     0.0 MB    0.12 s
+ent_tensor cold                 117 requests    29.7 MB    0.75 s
+ent_tensor warm                   0 requests     0.0 MB    0.16 s
+== disk cache page size 1048576
+-- aoi_20x_100px_all_dates
+ent_small cold                  171 requests   179.4 MB    1.50 s
+ent_small warm                    0 requests     0.0 MB    0.49 s
+ent_tensor cold                 272 requests   277.8 MB    2.17 s
+ent_tensor warm                   0 requests     0.0 MB    0.64 s
+-- full_date_14x1024x1024
+ent_small cold                   18 requests    18.9 MB    0.24 s
+ent_small warm                    0 requests     0.0 MB    0.11 s
+ent_tensor cold                  32 requests    29.7 MB    0.38 s
+ent_tensor warm                   0 requests     0.0 MB    0.15 s

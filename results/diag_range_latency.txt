@@ -1,0 +1,3 @@
+   209.6 MB object lance_small.lance/data/110010001001110101000101e 64 KB range GET median    3.7 ms
+     0.1 MB object icechunk_small.icechunk/chunks/6BXCZGEPXDG4D8MMR 64 KB range GET median    1.8 ms
+     4.4 MB object zarr_sharded.zarr/reflectance/c/2/0/0/1          64 KB range GET median    2.6 ms

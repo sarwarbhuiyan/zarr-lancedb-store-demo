@@ -1,0 +1,24 @@
+[
+  {
+    "path": "ent_wal",
+    "writers": 1,
+    "wall_s": 8.44,
+    "dates_written": 12,
+    "commit_median_s": 0.412,
+    "errors": [],
+    "table": "ent_wal_1w_5cfa20",
+    "verified": true,
+    "verify_read_s": 2.03
+  },
+  {
+    "path": "ent_wal",
+    "writers": 4,
+    "wall_s": 3.84,
+    "dates_written": 12,
+    "commit_median_s": 0.76,
+    "errors": [],
+    "table": "ent_wal_4w_70763a",
+    "verified": true,
+    "verify_read_s": 2.08
+  }
+]

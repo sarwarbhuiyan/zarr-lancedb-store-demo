@@ -1,0 +1,170 @@
+[
+  {
+    "layout": "zarr_big",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 7.75,
+    "store_gets": 315,
+    "ranged_gets": 0,
+    "mb_from_store": 1339.5
+  },
+  {
+    "layout": "zarr_big",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 9.766,
+    "store_gets": 143,
+    "ranged_gets": 0,
+    "mb_from_store": 601.2
+  },
+  {
+    "layout": "zarr_big",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.238,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.2
+  },
+  {
+    "layout": "zarr_sharded",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 3.063,
+    "store_gets": 699,
+    "ranged_gets": 696,
+    "mb_from_store": 192.9
+  },
+  {
+    "layout": "zarr_sharded",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 6.716,
+    "store_gets": 290,
+    "ranged_gets": 287,
+    "mb_from_store": 36.3
+  },
+  {
+    "layout": "zarr_sharded",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.135,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "icechunk_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 3.72,
+    "store_gets": 1359,
+    "ranged_gets": 0,
+    "mb_from_store": 92.6
+  },
+  {
+    "layout": "icechunk_small",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 3.518,
+    "store_gets": 284,
+    "ranged_gets": 0,
+    "mb_from_store": 19.2
+  },
+  {
+    "layout": "icechunk_small",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.685,
+    "store_gets": 259,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "lance_big",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 8.956,
+    "store_gets": 315,
+    "ranged_gets": 0,
+    "mb_from_store": 1339.5
+  },
+  {
+    "layout": "lance_big",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 7.197,
+    "store_gets": 143,
+    "ranged_gets": 0,
+    "mb_from_store": 601.2
+  },
+  {
+    "layout": "lance_big",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.118,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.2
+  },
+  {
+    "layout": "lance_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 4.034,
+    "store_gets": 1359,
+    "ranged_gets": 0,
+    "mb_from_store": 92.6
+  },
+  {
+    "layout": "lance_small",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 3.558,
+    "store_gets": 284,
+    "ranged_gets": 0,
+    "mb_from_store": 19.2
+  },
+  {
+    "layout": "lance_small",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.705,
+    "store_gets": 259,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 7.59,
+    "store_gets": 699,
+    "ranged_gets": 696,
+    "mb_from_store": 192.9
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 19.037,
+    "store_gets": 290,
+    "ranged_gets": 287,
+    "mb_from_store": 36.3
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.17,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "lance_tensor",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 4.39,
+    "store_gets": 1359,
+    "ranged_gets": 0,
+    "mb_from_store": 155.5
+  },
+  {
+    "layout": "lance_tensor",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 3.744,
+    "store_gets": 284,
+    "ranged_gets": 0,
+    "mb_from_store": 32.2
+  },
+  {
+    "layout": "lance_tensor",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.818,
+    "store_gets": 259,
+    "ranged_gets": 0,
+    "mb_from_store": 29.4
+  }
+]

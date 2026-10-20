@@ -1,0 +1,44 @@
+[
+  {
+    "layout": "zarr_big",
+    "write_s": 1.09,
+    "size_mb": 206.1,
+    "files": 50
+  },
+  {
+    "layout": "zarr_sharded",
+    "write_s": 1.21,
+    "size_mb": 209.8,
+    "files": 50
+  },
+  {
+    "layout": "icechunk_small",
+    "write_s": 0.98,
+    "size_mb": 209.9,
+    "files": 3079
+  },
+  {
+    "layout": "lance_big",
+    "write_s": 0.87,
+    "size_mb": 206.1,
+    "files": 4
+  },
+  {
+    "layout": "lance_small",
+    "write_s": 0.96,
+    "size_mb": 209.6,
+    "files": 4
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "write_s": 0.95,
+    "size_mb": 209.8,
+    "files": 52
+  },
+  {
+    "layout": "lance_tensor",
+    "write_s": 0.46,
+    "size_mb": 353.2,
+    "files": 10
+  }
+]

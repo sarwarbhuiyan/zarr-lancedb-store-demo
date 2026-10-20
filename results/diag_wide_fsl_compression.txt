@@ -1,0 +1,13 @@
+raw 22.9 MB, one value = 114688 bytes
+Blosc zstd per chip (Zarr)    0.59 x raw
+default                       1.00 x raw
+zstd                          1.00 x raw
+fullzip + zstd                1.00 x raw
+miniblock + zstd             error: Invalid user input: Value is too wide for miniblock encoding: 2 values require 229376 bytes but a miniblock ch
+binary (raw bytes)            0.78 x raw
+binary + zstd                 0.78 x raw
+same pixels, narrow layouts that fit mini-block:
+8-value list, default         1.00 x raw
+8-value list + zstd           1.00 x raw
+scalar uint16, default        0.76 x raw
+scalar uint16 + zstd          0.76 x raw

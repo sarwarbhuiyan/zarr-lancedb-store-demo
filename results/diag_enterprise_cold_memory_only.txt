@@ -1,0 +1,15 @@
+-- aoi_20x_100px_all_dates
+ent_small cold                  621 requests   102.9 MB    1.70 s
+ent_small warm                    0 requests     0.0 MB    0.48 s
+ent_tensor cold                 566 requests   147.7 MB    1.90 s
+ent_tensor warm                   0 requests     0.0 MB    0.65 s
+-- full_date_14x1024x1024
+ent_small cold                   69 requests    17.7 MB    0.33 s
+ent_small warm                    0 requests     0.0 MB    0.10 s
+ent_tensor cold                   8 requests    29.4 MB    0.40 s
+ent_tensor warm                   0 requests     0.0 MB    0.15 s
+-- patches_128x_32px_one_date
+ent_small cold                  194 requests    30.3 MB    3.73 s
+ent_small warm                    0 requests     0.0 MB    0.35 s
+ent_tensor cold                 190 requests    39.6 MB    4.02 s
+ent_tensor warm                   0 requests     0.0 MB    0.55 s

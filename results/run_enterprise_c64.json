@@ -1,0 +1,110 @@
+[
+  {
+    "layout": "ent_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "cold_s": 3.352,
+    "disk_s": 0.619,
+    "memory_s": 0.5055000000000001
+  },
+  {
+    "layout": "ent_small",
+    "workload": "patches_128x_32px_one_date",
+    "cold_s": 4.016,
+    "disk_s": 0.549,
+    "memory_s": 0.382
+  },
+  {
+    "layout": "ent_small",
+    "workload": "full_date_14x1024x1024",
+    "cold_s": 0.554,
+    "disk_s": 0.105,
+    "memory_s": 0.093
+  },
+  {
+    "layout": "ent_tensor",
+    "workload": "aoi_20x_100px_all_dates",
+    "cold_s": 2.701,
+    "disk_s": 0.73,
+    "memory_s": 0.6475
+  },
+  {
+    "layout": "ent_tensor",
+    "workload": "patches_128x_32px_one_date",
+    "cold_s": 4.202,
+    "disk_s": 0.606,
+    "memory_s": 0.45799999999999996
+  },
+  {
+    "layout": "ent_tensor",
+    "workload": "full_date_14x1024x1024",
+    "cold_s": 1.298,
+    "disk_s": 0.233,
+    "memory_s": 0.1315
+  },
+  {
+    "layout": "ent_big",
+    "workload": "aoi_20x_100px_all_dates",
+    "cold_s": 8.523,
+    "disk_s": 5.654,
+    "memory_s": 5.3035
+  },
+  {
+    "layout": "ent_big",
+    "workload": "patches_128x_32px_one_date",
+    "cold_s": 14.041,
+    "disk_s": 2.999,
+    "memory_s": 2.815
+  },
+  {
+    "layout": "ent_big",
+    "workload": "full_date_14x1024x1024",
+    "cold_s": 0.592,
+    "disk_s": 0.102,
+    "memory_s": 0.098
+  },
+  {
+    "layout": "lance_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "direct_s": 1.2825
+  },
+  {
+    "layout": "lance_small",
+    "workload": "patches_128x_32px_one_date",
+    "direct_s": 3.4385000000000003
+  },
+  {
+    "layout": "lance_small",
+    "workload": "full_date_14x1024x1024",
+    "direct_s": 0.21200000000000002
+  },
+  {
+    "layout": "lance_tensor",
+    "workload": "aoi_20x_100px_all_dates",
+    "direct_s": 1.558
+  },
+  {
+    "layout": "lance_tensor",
+    "workload": "patches_128x_32px_one_date",
+    "direct_s": 3.6494999999999997
+  },
+  {
+    "layout": "lance_tensor",
+    "workload": "full_date_14x1024x1024",
+    "direct_s": 0.2965
+  },
+  {
+    "layout": "lance_big",
+    "workload": "aoi_20x_100px_all_dates",
+    "direct_s": 7.1655
+  },
+  {
+    "layout": "lance_big",
+    "workload": "patches_128x_32px_one_date",
+    "direct_s": 6.7705
+  },
+  {
+    "layout": "lance_big",
+    "workload": "full_date_14x1024x1024",
+    "direct_s": 0.109
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "vectors": "float32",
+    "index": "IVF_PQ 16x8",
+    "table_mb": 134.8,
+    "build_s": 4.2,
+    "index_mb": 5.0,
+    "search": "default",
+    "recall@10": 0.208,
+    "query_ms_median": 1.8
+  },
+  {
+    "vectors": "float32",
+    "index": "IVF_PQ 16x8",
+    "table_mb": 134.8,
+    "build_s": 4.2,
+    "index_mb": 5.0,
+    "search": "all partitions + refine 10",
+    "recall@10": 0.493,
+    "query_ms_median": 3.6
+  },
+  {
+    "vectors": "float32",
+    "index": "IVF_RQ 1 bit",
+    "table_mb": 134.8,
+    "build_s": 0.3,
+    "index_mb": 8.0,
+    "search": "default",
+    "recall@10": 0.212,
+    "query_ms_median": 1.3
+  },
+  {
+    "vectors": "float32",
+    "index": "IVF_RQ 1 bit",
+    "table_mb": 134.8,
+    "build_s": 0.3,
+    "index_mb": 8.0,
+    "search": "all partitions + refine 10",
+    "recall@10": 0.595,
+    "query_ms_median": 2.0
+  },
+  {
+    "vectors": "float32",
+    "index": "IVF_RQ 4 bit",
+    "table_mb": 134.8,
+    "build_s": 0.3,
+    "index_mb": 22.6,
+    "search": "default",
+    "recall@10": 0.314,
+    "query_ms_median": 1.2
+  },
+  {
+    "vectors": "float32",
+    "index": "IVF_RQ 4 bit",
+    "table_mb": 134.8,
+    "build_s": 0.3,
+    "index_mb": 22.6,
+    "search": "all partitions + refine 10",
+    "recall@10": 0.665,
+    "query_ms_median": 1.9
+  },
+  {
+    "vectors": "float16",
+    "index": "IVF_PQ 16x8",
+    "table_mb": 67.7,
+    "build_s": 5.5,
+    "index_mb": 4.9,
+    "search": "default",
+    "recall@10": 0.215,
+    "query_ms_median": 1.9
+  },
+  {
+    "vectors": "float16",
+    "index": "IVF_PQ 16x8",
+    "table_mb": 67.7,
+    "build_s": 5.5,
+    "index_mb": 4.9,
+    "search": "all partitions + refine 10",
+    "recall@10": 0.504,
+    "query_ms_median": 3.8
+  },
+  {
+    "vectors": "float16",
+    "index": "IVF_RQ 1 bit",
+    "table_mb": 67.7,
+    "build_s": 0.1,
+    "index_mb": 8.0,
+    "search": "default",
+    "recall@10": 0.222,
+    "query_ms_median": 1.3
+  },
+  {
+    "vectors": "float16",
+    "index": "IVF_RQ 1 bit",
+    "table_mb": 67.7,
+    "build_s": 0.1,
+    "index_mb": 8.0,
+    "search": "all partitions + refine 10",
+    "recall@10": 0.572,
+    "query_ms_median": 2.1
+  },
+  {
+    "vectors": "float16",
+    "index": "IVF_RQ 4 bit",
+    "table_mb": 67.7,
+    "build_s": 0.3,
+    "index_mb": 22.6,
+    "search": "default",
+    "recall@10": 0.329,
+    "query_ms_median": 1.2
+  },
+  {
+    "vectors": "float16",
+    "index": "IVF_RQ 4 bit",
+    "table_mb": 67.7,
+    "build_s": 0.3,
+    "index_mb": 22.6,
+    "search": "all partitions + refine 10",
+    "recall@10": 0.686,
+    "query_ms_median": 1.9
+  }
+]

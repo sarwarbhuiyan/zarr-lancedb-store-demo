@@ -1,0 +1,34 @@
+{
+  "region_pixels": 262144,
+  "table2_lance_version": 1,
+  "h3_res11_pixels_per_cell": {
+    "mean": 22.0,
+    "min": 1,
+    "max": 25
+  },
+  "h3_res13_distinct_cells": 262144,
+  "h3_range_rows": 1094,
+  "h3_bruteforce_rows": 1094,
+  "s2_cover_cells": 4,
+  "s2_range_rows": 50234,
+  "s2_bruteforce_rows": 50234,
+  "s2_ids_exceed_int64": true,
+  "h3_plan_uses_scalar_index": true,
+  "s2_plan_uses_scalar_index": true,
+  "sizes": {
+    "table1_pixels_lancedb_mb": 145.7,
+    "table2_zarr_chunks_lance_mb": 22.5,
+    "tessera_in_table2_raw_mb": 33.6,
+    "tessera_in_table1_raw_mb": 134.2
+  },
+  "timings_s": {
+    "embeddings": 0.761,
+    "table2_write": 0.329,
+    "cell_ids": 1.401,
+    "table1_write_and_index": 5.876,
+    "vector_search_top5": 0.04,
+    "xarray_windows_5x100px_12dates": 0.036,
+    "vector_search_in_h3_parent": 0.004,
+    "vector_search_in_s2_covering": 0.005
+  }
+}

@@ -1,0 +1,6 @@
+http://localhost:19000  1 parallel x 4.3 MB:     188 MB/s aggregate
+http://localhost:19000  8 parallel x 4.3 MB:     203 MB/s aggregate
+http://localhost:19000 32 parallel x 4.3 MB:     206 MB/s aggregate
+http://localhost:19001  1 parallel x 4.3 MB:      94 MB/s aggregate
+http://localhost:19001  8 parallel x 4.3 MB:     206 MB/s aggregate
+http://localhost:19001 32 parallel x 4.3 MB:     213 MB/s aggregate

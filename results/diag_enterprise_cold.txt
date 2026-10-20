@@ -1,0 +1,21 @@
+-- aoi_20x_100px_all_dates
+ent_small cold                 3128 requests   104.5 MB    2.11 s
+ent_small warm                    0 requests     0.0 MB    0.52 s
+ent_tensor cold                4502 requests   150.2 MB    2.76 s
+ent_tensor warm                   0 requests     0.0 MB    0.63 s
+lance_small direct              752 requests    92.9 MB    1.40 s
+lance_tensor direct             600 requests   156.1 MB    1.36 s
+-- patches_128x_32px_one_date
+ent_small cold                  920 requests    30.7 MB    3.92 s
+ent_small warm                    0 requests     0.0 MB    0.43 s
+ent_tensor cold                1212 requests    40.3 MB    4.23 s
+ent_tensor warm                   0 requests     0.0 MB    0.46 s
+lance_small direct              203 requests    19.3 MB    3.38 s
+lance_tensor direct             195 requests    32.5 MB    3.49 s
+-- full_date_14x1024x1024
+ent_small cold                  538 requests    18.0 MB    0.61 s
+ent_small warm                    0 requests     0.0 MB    0.10 s
+ent_tensor cold                 902 requests    30.0 MB    1.21 s
+ent_tensor warm                   0 requests     0.0 MB    0.17 s
+lance_small direct               58 requests    17.6 MB    0.17 s
+lance_tensor direct               6 requests    29.4 MB    0.22 s

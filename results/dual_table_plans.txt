@@ -1,0 +1,17 @@
+# H3 parent range
+ProjectionExec: expr=[h3@2 as h3, h3_r11@3 as h3_r11, s2_l16@4 as s2_l16, year@5 as year, y@6 as y, x@7 as x, tessera_embedding@8 as tessera_embedding, _distance@0 as _distance]
+  LanceRead: uri=Users/sarwar/dev/zarr-lancedb-store-demo/data/dual/lancedb/earth_pixels.lance/data, projection=[h3, h3_r11, s2_l16, year, y, x, tessera_embedding], source=stream(_rowid)
+    SortExec: TopK(fetch=10), expr=[_distance@0 ASC NULLS LAST, _rowid@1 ASC NULLS LAST], preserve_partitioning=[false]
+      ANNSubIndex: name=tessera_embedding_idx, k=10, deltas=1, metric=Cosine
+        ANNIvfPartition: uuid=b0bf822b-d964-4100-837f-793ca6915098, minimum_nprobes=20, maximum_nprobes=Some(20), deltas=1
+        ScalarIndexQuery: query=[h3 >= 637452212283637823 && h3 <= 637452212283862463]@h3_idx(BTree)
+
+
+# S2 covering ranges
+ProjectionExec: expr=[h3@2 as h3, h3_r11@3 as h3_r11, s2_l16@4 as s2_l16, year@5 as year, y@6 as y, x@7 as x, tessera_embedding@8 as tessera_embedding, _distance@0 as _distance]
+  LanceRead: uri=Users/sarwar/dev/zarr-lancedb-store-demo/data/dual/lancedb/earth_pixels.lance/data, projection=[h3, h3_r11, s2_l16, year, y, x, tessera_embedding], source=stream(_rowid)
+    SortExec: TopK(fetch=10), expr=[_distance@0 ASC NULLS LAST, _rowid@1 ASC NULLS LAST], preserve_partitioning=[false]
+      ANNSubIndex: name=tessera_embedding_idx, k=10, deltas=1, metric=Cosine
+        ANNIvfPartition: uuid=b0bf822b-d964-4100-837f-793ca6915098, minimum_nprobes=20, maximum_nprobes=Some(20), deltas=1
+        ScalarIndexQuery: query=OR(OR([s2_l16 >= 10550813387141414913 && s2_l16 <= 10550813421501153279]@s2_l16_idx(BTree),[s2_l16 >= 10550813490220630017 && s2_l16 <= 10550813524580368383]@s2_l16_idx(BTree)),OR([s2_l16 >= 10550813524580368385 && s2_l16 <= 10550813558940106751]@s2_l16_idx(BTree),[s2_l16 >= 10550813627659583489 && s2_l16 <= 10550813662019321855]@s2_l16_idx(BTree)))
+

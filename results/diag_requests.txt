@@ -1,0 +1,6 @@
+lance_small   take  10 rows:     30 ms,   10 requests,    0.6 MB -> ~2 latency periods for 10 requests
+lance_small   take 100 rows:     79 ms,  100 requests,    6.8 MB -> ~4 latency periods for 100 requests
+lance_tensor  take  10 rows:     75 ms,   14 requests,    1.3 MB -> ~4 latency periods for 14 requests
+lance_tensor  take 100 rows:     94 ms,  100 requests,   11.5 MB -> ~5 latency periods for 100 requests
+blob ranges    10 x 64 KB:     54 ms,   11 requests,    0.7 MB -> ~3 latency periods for 11 requests
+blob ranges   100 x 64 KB:    112 ms,  101 requests,    6.6 MB -> ~6 latency periods for 101 requests

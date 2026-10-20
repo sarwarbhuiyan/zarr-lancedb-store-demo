@@ -1,0 +1,16 @@
+layout               workload       requests      MB  seconds
+zarr_sharded         20 AOIs             696   193.3     2.60
+zarr_sharded         128 patches         287    36.5     6.56
+zarr_sharded         one full date         4    17.5     0.10
+lance_sharded_blob   20 AOIs             696   193.3     2.89
+lance_sharded_blob   128 patches         287    36.5     6.52
+lance_sharded_blob   one full date         4    17.5     0.12
+icechunk_small       20 AOIs            1357    93.5     3.64
+icechunk_small       128 patches         282    19.4     3.29
+icechunk_small       one full date       257    17.8     0.68
+lance_small          20 AOIs            1144    93.2     3.72
+lance_small          128 patches         212    19.3     3.37
+lance_small          one full date       204    17.7     0.66
+lance_tensor         20 AOIs             630   156.1     4.13
+lance_tensor         128 patches         195    32.5     3.57
+lance_tensor         one full date        28    29.4     0.77

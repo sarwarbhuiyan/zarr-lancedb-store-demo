@@ -1,0 +1,4 @@
+read_blob_ranges, 1 suffix range             median   46.5 ms, requests per call 2
+read_blob_ranges, 4 ranges in 1 blob         median   50.0 ms, requests per call 5
+cached BlobFile.read_range, 1 suffix range   median   23.7 ms, requests per call 1
+cached BlobFile.read_ranges, 4 ranges        median   25.9 ms, requests per call 4

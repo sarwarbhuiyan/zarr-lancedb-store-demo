@@ -1,0 +1,26 @@
+[
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 2.423,
+    "store_gets": 699,
+    "ranged_gets": 696,
+    "mb_from_store": 192.9
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 6.687,
+    "store_gets": 290,
+    "ranged_gets": 287,
+    "mb_from_store": 36.3
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.143,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  }
+]
