@@ -153,6 +153,7 @@ ENTERPRISE_LAYOUTS = {
     "ent_big": "lance_big through the Enterprise REST API",
     "ent_small": "lance_small through the Enterprise REST API",
     "ent_tensor": "lance_tensor through the Enterprise REST API",
+    "ent_sharded_blob": "lance_sharded_blob through the Enterprise REST API (blob byte ranges, bytes in Lance)",
     "ent_ref_small": "lance_ref_small through the Enterprise REST API (blob byte ranges)",
     "ent_ref_sharded": "lance_ref_sharded through the Enterprise REST API (blob byte ranges)",
 }

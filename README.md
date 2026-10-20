@@ -472,6 +472,27 @@ the in-Lance `lance_small` table run in the same session for contrast
 - **Opening is slow for many rows.** Opening a remote handle for each of `lance_ref_small`'s 3,074
   rows took about 18 s. Opening is outside the timings above.
 
+### Is Blob V2 cached through Enterprise, when the bytes are stored in Lance?
+
+No. [bench/diag_enterprise_blob_cache.py](bench/diag_enterprise_blob_cache.py) runs Enterprise
+with a counting latency proxy between both processes and MinIO, restarts the plan executor with
+empty caches, and reads each workload twice
+([results/diag_enterprise_blob_cache.txt](results/diag_enterprise_blob_cache.txt)):
+
+| Table | Workload | Cold pass | Warm pass |
+|---|---|---|---|
+| `lance_small`, binary column | 128 patches | 920 requests, 4.49 s | 0 requests, 0.37 s |
+| `lance_small`, binary column | one full date | 538 requests, 0.68 s | 0 requests, 0.10 s |
+| `lance_sharded_blob`, Blob V2, bytes in Lance | 128 patches | 574 requests, 12.81 s | 574 requests, 12.62 s |
+| `lance_sharded_blob`, Blob V2, bytes in Lance | one full date | 8 requests, 0.13 s | 8 requests, 0.13 s |
+| `lance_ref_sharded`, Blob V2, external references | 128 patches | 574 requests, 12.97 s | 574 requests, 12.66 s |
+| `lance_ref_sharded`, Blob V2, external references | one full date | 8 requests, 0.13 s | 8 requests, 0.13 s |
+
+The query node serves blob byte ranges itself, so the plan executor's cache never sees them,
+whether the blob bytes live in Lance or elsewhere. Each range costs two object-store requests,
+287 ranges sending 574, which is why these reads take about twice as long as direct. Only
+binary and tensor columns get the cache.
+
 ## Lance gaps and development paths
 
 ### Fixed-size lists are not compressed in format 2.2

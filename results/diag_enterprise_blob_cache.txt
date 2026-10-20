@@ -1,0 +1,13 @@
+layout             workload       pass  requests      MB  seconds
+ent_small          128 patches    cold       920    30.7     4.49
+ent_small          128 patches    warm         0     0.0     0.37
+ent_small          one full date  cold       538    18.0     0.68
+ent_small          one full date  warm         0     0.0     0.10
+ent_sharded_blob   128 patches    cold       574    38.2    12.81
+ent_sharded_blob   128 patches    warm       574    38.2    12.62
+ent_sharded_blob   one full date  cold         8    17.6     0.13
+ent_sharded_blob   one full date  warm         8    17.6     0.13
+ent_ref_sharded    128 patches    cold       574    38.0    12.97
+ent_ref_sharded    128 patches    warm       574    38.0    12.66
+ent_ref_sharded    one full date  cold         8    17.6     0.13
+ent_ref_sharded    one full date  warm         8    17.6     0.13
