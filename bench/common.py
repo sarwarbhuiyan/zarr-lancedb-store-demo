@@ -138,7 +138,13 @@ LAYOUTS = {
     "lance_small": "LanceStore, 64 px chunks, blosc-zstd, binary column",
     "lance_sharded_blob": "LanceStore, 64 px chunks in 512 px shards, Blob V2 ranged reads",
     "lance_tensor": "LanceTensorStore over a chip table (64 px tensor column + vector + filters)",
+    "zarr_small": "Zarr, 64 px chunks, blosc-zstd, one object per chunk",
+    "lance_ref_small": "LanceStore referencing zarr_small's objects in place (Blob V2 external URIs)",
+    "lance_ref_sharded": "LanceStore referencing zarr_sharded's objects in place (Blob V2 external URIs)",
 }
+# Reference layouts copy no chunk bytes: each row points at an object of this plain Zarr layout,
+# which must be built first.
+REFERENCED = {"lance_ref_small": "zarr_small", "lance_ref_sharded": "zarr_sharded"}
 
 
 # The same Lance tables read through LanceDB Enterprise (scripts/enterprise.sh) instead of
@@ -147,6 +153,8 @@ ENTERPRISE_LAYOUTS = {
     "ent_big": "lance_big through the Enterprise REST API",
     "ent_small": "lance_small through the Enterprise REST API",
     "ent_tensor": "lance_tensor through the Enterprise REST API",
+    "ent_ref_small": "lance_ref_small through the Enterprise REST API (blob byte ranges)",
+    "ent_ref_sharded": "lance_ref_sharded through the Enterprise REST API (blob byte ranges)",
 }
 ENTERPRISE_URL = os.environ.get("ENTERPRISE_URL", "http://127.0.0.1:47410")
 ENTERPRISE_API_KEY = os.environ.get("ENTERPRISE_API_KEY", "localkey")
@@ -167,6 +175,8 @@ def build(layout: str, target: Target, cube: np.ndarray) -> dict:
         ds = lance.write_dataset(table, target.lance_uri(layout), storage_options=target.lance_opts(),
                                  data_storage_version="2.2", max_rows_per_file=1024)
         ds.create_scalar_index("t", "BTREE")
+    elif layout in REFERENCED:
+        build_references(layout, target)
     else:
         enc = "blob" if layout.endswith("_blob") else "binary"
         store = LanceStore(target.lance_uri(layout), value_encoding=enc, storage_options=target.lance_opts())
@@ -176,12 +186,65 @@ def build(layout: str, target: Target, cube: np.ndarray) -> dict:
     return {"layout": layout, "write_s": round(time.perf_counter() - t0, 2)}
 
 
+def s3_client(endpoint: str):
+    import boto3
+
+    return boto3.client("s3", endpoint_url=endpoint, aws_access_key_id=S3_KEY, aws_secret_access_key=S3_SECRET,
+                        region_name=S3_REGION)
+
+
+def s3_objects(endpoint: str, prefix: str) -> dict[str, int]:
+    """Object key (relative to `prefix`) -> size, from a bucket listing."""
+    sizes = {}
+    for page in s3_client(endpoint).get_paginator("list_objects_v2").paginate(Bucket=S3_BUCKET, Prefix=prefix):
+        sizes.update({o["Key"][len(prefix):]: o["Size"] for o in page.get("Contents", [])})
+    return sizes
+
+
+def s3_prefix(layout: str) -> str:
+    if layout.startswith("zarr_"):
+        return f"{layout}.zarr/"
+    if layout.startswith("icechunk_"):
+        return f"{layout}.icechunk/"
+    return f"{LANCE_DB}/{layout}.lance/"
+
+
+def build_references(layout: str, target: Target) -> None:
+    """A `LanceStore` table whose values are external references to a plain Zarr layout's objects."""
+    from lance.blob import Blob, blob_array
+
+    zarr_layout = REFERENCED[layout]
+    if target.name == "local":
+        root = f"{ROOT}/{zarr_layout}.zarr"
+        sizes = {os.path.relpath(os.path.join(dp, f), root): os.path.getsize(os.path.join(dp, f))
+                 for dp, _, fns in os.walk(root) for f in fns}
+        root = "file://" + root
+    else:
+        root = f"s3://{S3_BUCKET}/{zarr_layout}.zarr"
+        sizes = s3_objects(target.endpoint, s3_prefix(zarr_layout))
+        s3 = s3_client(target.endpoint)
+        for key in s3_objects(target.endpoint, s3_prefix(layout)):  # a rebuild starts from nothing
+            s3.delete_object(Bucket=S3_BUCKET, Key=s3_prefix(layout) + key)
+    keys = sorted(sizes)
+    rows = pa.table({"key": pa.array(keys, pa.string()),
+                     "value": blob_array([Blob.from_uri(f"{root}/{k}", 0, sizes[k]) for k in keys])},
+                    schema=pa.schema([pa.field("key", pa.string(), nullable=False), lance.blob_field("value")]))
+    # The Zarr root is registered as a base so references may point into it; Lance's own files
+    # still go to the dataset root.
+    lance.write_dataset(rows, target.lance_uri(layout), storage_options=target.lance_opts(),
+                        data_storage_version="2.2", mode="create",
+                        initial_bases=[lance.DatasetBasePath(root, name="zarr")])
+
+
 def open_array(layout: str, target: Target, counting: bool = False):
     from lance_zarr import CountingStore, LanceDBStore, LanceDBTensorStore, LanceTensorStore
 
+    # Blob reads run in a thread pool; size it to Zarr's concurrency so it is not the limit.
+    blob_threads = zarr.config.get("async.concurrency")
     if layout.startswith("ent_"):
         table, conn = "lance_" + layout[len("ent_"):], dict(database=LANCE_DB, host=ENTERPRISE_URL, api_key=ENTERPRISE_API_KEY)
-        store = LanceDBTensorStore(table, **conn) if layout == "ent_tensor" else LanceDBStore(table, **conn)
+        store = (LanceDBTensorStore(table, **conn) if layout == "ent_tensor"
+                 else LanceDBStore(table, **conn, blob_read_threads=blob_threads))
     elif layout.startswith("zarr_"):
         store = target.zarr_store(layout, read_only=True)
     elif layout.startswith("icechunk_"):
@@ -189,7 +252,8 @@ def open_array(layout: str, target: Target, counting: bool = False):
     elif layout == "lance_tensor":
         store = LanceTensorStore(target.lance_uri(layout), storage_options=target.lance_opts())
     else:
-        store = LanceStore(target.lance_uri(layout), read_only=True, storage_options=target.lance_opts())
+        store = LanceStore(target.lance_uri(layout), read_only=True, storage_options=target.lance_opts(),
+                           blob_read_threads=blob_threads)
     if counting:
         store = CountingStore(store)
     return zarr.open_array(store, path="reflectance", mode="r"), store

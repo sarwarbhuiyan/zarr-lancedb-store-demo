@@ -12,14 +12,15 @@ which costs a storage round trip on every read; a request for a pinned version s
 
 Two REST behaviours shape the code: a take returns rows sorted by row ID rather than in request
 order, so results are matched back by `_rowid`; and a take on a Blob V2 column returns the blob
-descriptors, not the bytes. Blob byte ranges are served one per request without the plan executor's
-cache (ENT-3100), so these stores support binary and tensor columns only.
+descriptors, not the bytes. Blob tables are therefore read through remote `BlobFile` handles, one
+REST request per byte range, served by the query node without the plan executor's cache (ENT-3100).
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Iterable
+from concurrent.futures import ThreadPoolExecutor
 
 import lancedb
 import pyarrow as pa
@@ -27,7 +28,7 @@ from zarr.abc.store import ByteRequest, OffsetByteRequest, RangeByteRequest, Sto
 from zarr.core.buffer import Buffer, BufferPrototype
 
 from lance_zarr.batching import TickBatcher
-from lance_zarr.store import _slice
+from lance_zarr.store import _blob_range, _slice
 from lance_zarr.tensor_store import LanceTensorStore
 
 DEFAULT_REGION = "us-east-1"
@@ -93,7 +94,7 @@ class LanceDBStore(Store):
 
     def __init__(self, table: str, *, database: str, host: str, api_key: str, read_only: bool = True,
                  version: int | str | None = None, use_lsm: bool = False, flush_bytes: int = 256 * 1024 * 1024,
-                 region: str = DEFAULT_REGION) -> None:
+                 region: str = DEFAULT_REGION, blob_read_threads: int = 16) -> None:
         super().__init__(read_only=read_only or version is not None)
         self.table_name, self.database, self.host, self.api_key, self.region = table, database, host, api_key, region
         self.use_lsm, self.flush_bytes, self.requested_version = use_lsm, flush_bytes, version
@@ -103,11 +104,11 @@ class LanceDBStore(Store):
                 raise FileNotFoundError(f"table {database}/{table} does not exist")
             db.create_table(table, schema=_LSM_SCHEMA if use_lsm else _SCHEMA)
         self._tbl = db.open_table(table)
-        if pa.types.is_struct(self._tbl.schema.field("value").type):
-            raise NotImplementedError(
-                "Blob V2 value columns are not readable through the REST take, and blob byte ranges are "
-                "served one per request without the PE cache (ENT-3100)"
-            )
+        self._blob = "value" in self._tbl.blob_columns()
+        if self._blob and (use_lsm or not self.read_only):
+            raise NotImplementedError("Blob V2 value columns are read-only through this store")
+        self.blob_read_threads = blob_read_threads
+        self._blob_pool = ThreadPoolExecutor(max_workers=blob_read_threads)
         if use_lsm and self._tbl.get_lsm_write_spec() is None:
             self._tbl.set_lsm_write_spec(lancedb.LsmWriteSpec.unsharded().with_maintained_indexes([]))
         self._buffer: dict[str, bytes | object] = {}
@@ -128,12 +129,27 @@ class LanceDBStore(Store):
             self._tbl.checkout(self._tbl.version if self.requested_version is None else self.requested_version)
             keys = scan_with_row_ids(self._tbl, ["key"])
             self._index = dict(zip(keys.column("key").to_pylist(), keys.column("_rowid").to_pylist()))
+            if self._blob:
+                # One handle per row, opened once; each knows its blob's size for suffix ranges.
+                files = self._tbl.fetch_blob_files("value", list(self._index.values()))
+                self._blob_files = dict(zip(self._index, files))
+                self._blob_sizes = {k: 0 if f is None else f.size() for k, f in self._blob_files.items()}
         self.version = None if self.use_lsm else self._tbl.version
 
     # ---- reads ---------------------------------------------------------------------
 
+    def _read_blob(self, request: tuple[str, ByteRequest | None]) -> bytes | None:
+        key, byte_range = request
+        f = self._blob_files.get(key)
+        if f is None:
+            return None
+        start, length = _blob_range(byte_range, self._blob_sizes[key])
+        return b"" if length <= 0 else bytes(f.read_range(start, length))
+
     def _fetch(self, requests: list[tuple[str, ByteRequest | None]]) -> list[bytes | None]:
         self.rest_reads += 1
+        if self._blob:
+            return list(self._blob_pool.map(self._read_blob, requests))
         keys = list(dict.fromkeys(k for k, _ in requests))
         if self.use_lsm:
             got = (self._tbl.search().where(f"key IN ({_sql_in(keys)})").select(["key", "value"])
@@ -256,7 +272,8 @@ class LanceDBStore(Store):
     def with_read_only(self, read_only: bool = False) -> LanceDBStore:
         return LanceDBStore(self.table_name, database=self.database, host=self.host, api_key=self.api_key,
                             read_only=read_only, version=self.requested_version, use_lsm=self.use_lsm,
-                            flush_bytes=self.flush_bytes, region=self.region)
+                            flush_bytes=self.flush_bytes, region=self.region,
+                            blob_read_threads=self.blob_read_threads)
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, LanceDBStore) and (other.host, other.database, other.table_name, other.version) == (

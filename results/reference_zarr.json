@@ -1,0 +1,72 @@
+[
+  {
+    "layout": "chunked",
+    "zarr_bytes": 13461574,
+    "lance_bytes": 24574,
+    "initial_index": {
+      "objects": 100,
+      "rows_written": 100,
+      "metadata_rows_written": 3,
+      "version": 1,
+      "seconds": 0.013
+    },
+    "reads_equal_source": true,
+    "after_appending_one_date": {
+      "objects": 117,
+      "rows_written": 20,
+      "metadata_rows_written": 3,
+      "version": 2,
+      "seconds": 0.012
+    },
+    "snapshot_after_append": {
+      "latest_equals_appended": true,
+      "old_version_dates": 6,
+      "old_version_equals_original": true,
+      "old_tag_equals_original": true
+    },
+    "after_overwriting_one_date_in_place": {
+      "reindex": {
+        "objects": 117,
+        "rows_written": 16,
+        "metadata_rows_written": 0,
+        "version": 3
+      },
+      "old_version_read": "read error: LanceError(IO): Failed to read blob source Users/sarwar/dev/zarr-lancedb-store-demo/runs/reference_zarr/chunked.zarr/rgb_nir/c/0/0/0/0: LanceError(IO): Generic "
+    }
+  },
+  {
+    "layout": "sharded",
+    "zarr_bytes": 13481550,
+    "lance_bytes": 15114,
+    "initial_index": {
+      "objects": 10,
+      "rows_written": 10,
+      "metadata_rows_written": 3,
+      "version": 1,
+      "seconds": 0.004
+    },
+    "reads_equal_source": true,
+    "after_appending_one_date": {
+      "objects": 12,
+      "rows_written": 5,
+      "metadata_rows_written": 3,
+      "version": 2,
+      "seconds": 0.007
+    },
+    "snapshot_after_append": {
+      "latest_equals_appended": true,
+      "old_version_dates": 6,
+      "old_version_equals_original": true,
+      "old_tag_equals_original": true
+    },
+    "after_overwriting_one_date_in_place": {
+      "reindex": {
+        "objects": 12,
+        "rows_written": 1,
+        "metadata_rows_written": 0,
+        "version": 3
+      },
+      "old_version_read": "read error: Stored and computed checksum do not match. Stored: b'\\xa3\\t\\x00\\x00'. Computed: b'$3\\xb1\\xe9'."
+    }
+  }
+]

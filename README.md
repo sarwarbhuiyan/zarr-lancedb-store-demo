@@ -43,6 +43,13 @@ not show.
 - **Writes through Enterprise work, including MemWAL.** With 4 concurrent writers, MemWAL was the
   fastest commit path and created no Lance version per commit. Its 16 MiB request cap surfaces as
   a misleading 503.
+- **An existing plain Zarr store can be served through Lance without copying it.** A table of
+  Zarr keys and Blob V2 external references to the store's objects is 0.07% of the Zarr bytes and
+  reads correctly through `LanceStore` and through Enterprise. Read directly, it sends exactly the
+  requests and bytes plain Zarr sends and runs close to it. With metadata stored inline, Lance
+  versions and tags work as snapshots of the plain store when data is only appended; an in-place
+  overwrite breaks old versions. Through Enterprise, referenced bytes bypass the cache: cold and
+  warm reads take the same time, 1.3 to 2 times longer than direct.
 - **Two Lance gaps showed up, both with clear paths.** Format 2.2 compresses scalar, binary and
   string columns, but never fixed-size lists, the type a tensor or chip column uses;
   [lance-format/lance#5021](https://github.com/lance-format/lance/issues/5021) covers it.
@@ -59,6 +66,7 @@ not show.
 | [lance_zarr/counting.py](lance_zarr/counting.py) | `CountingStore`: wraps any store and counts gets, ranged gets and bytes |
 | [tests/](tests/) | zarr's store conformance suite against `LanceStore`, a tensor-view test, and a versioning smoke test |
 | [demo/dual_table.py](demo/dual_table.py) | The Gemini dual-table design built for real: a per-pixel LanceDB table plus Zarr chunks in Lance |
+| [demo/reference_zarr.py](demo/reference_zarr.py) | An existing plain Zarr store served through `LanceStore` by reference, plus re-indexing after an append |
 | [bench/](bench/) | Layout builder, read workloads, report generator, and the diagnostics quoted below |
 | [scripts/](scripts/) | MinIO and toxiproxy up and down, LanceDB Enterprise over the MinIO bucket, and a latency proxy that counts requests |
 | [results/](results/) | Raw JSON and text output behind every number in this README |
@@ -363,6 +371,107 @@ warm pinned take of a binary row. The SDK's remote `fetch_blob_ranges`, which wo
 raises "not supported". So sharded Zarr in a blob column reads through Enterprise one range at a
 time at storage latency; the binary and tensor tables use the cached take path. Filed as ENT-3100.
 
+## Plain Zarr referenced in place
+
+A Blob V2 value can be an external reference: a URI plus an offset and size, stored without
+copying the bytes. A `LanceStore` table whose rows hold each Zarr key and a reference to the
+object a plain Zarr writer already produced serves that store through the Zarr API, with the
+chunk bytes left where they are. The references must point under a base path registered on the
+table (`initial_bases=[lance.DatasetBasePath(zarr_root, name="zarr")]`), or the write is refused.
+
+Chunk files are written once, so they are referenced. The `zarr.json` metadata documents are
+rewritten in place on every append, so [demo/reference_zarr.py](demo/reference_zarr.py) stores
+their bytes inline in the same blob column. On local disk
+([results/reference_zarr.json](results/reference_zarr.json)), for a chunked and a sharded Zarr v3
+store:
+
+| Check | Chunked | Sharded |
+|---|---|---|
+| Reads through Lance equal the source | yes | yes |
+| Lance table for 13.5 MB of Zarr | 25 KB | 15 KB |
+| Rows re-indexed after appending one date (listing by size and mtime; on S3 the ETag) | 20 | 5 |
+| Latest version after the append | all 7 dates, exact | all 7 dates, exact |
+| Version from before the append, by number and by tag | original 6 dates, exact | original 6 dates, exact |
+| That old version after overwriting one date in place | read fails: short read | read fails: checksum mismatch |
+
+So Lance versions and tags give snapshots over plain Zarr, without Icechunk and without copying
+chunks, for data that is only appended. Lance versions the references, not the referenced files:
+an in-place overwrite breaks the versions that pointed at the old bytes. Data that is reprocessed
+in place needs new file names per write, a copy into Lance, or Icechunk.
+
+On the object-store rig, `build_references` in [bench/common.py](bench/common.py) lists a plain
+Zarr layout's objects and writes the reference table
+([results/build_s3_minio_ref.json](results/build_s3_minio_ref.json)):
+
+| Layout | References | Lance table | Files |
+|---|---|---|---|
+| `lance_ref_small` | `zarr_small`: 3,074 objects, 210 MB, one per 64 × 64 chunk | 151 KB | 3 |
+| `lance_ref_sharded` | `zarr_sharded`: 50 objects, 210 MB | 6 KB | 3 |
+
+### Reads, same session as the baselines
+
+Median seconds at Zarr concurrency 10, then 64, every window verified against the source
+([results/run_s3_c10_minio_ref.json](results/run_s3_c10_minio_ref.json),
+[results/run_s3_c64_minio_ref.json](results/run_s3_c64_minio_ref.json)):
+
+| Layout | Bytes live in | 20 AOIs | 128 patches | One full date |
+|---|---|---|---|---|
+| `zarr_small` | plain objects | 3.59 / 1.00 | 3.38 / 3.40 | 0.64 / 0.14 |
+| `icechunk_small` | Icechunk | 3.58 / 1.05 | 3.40 / 3.47 | 0.66 / 0.17 |
+| `lance_small` | Lance | 3.82 / 1.30 | 3.50 / 3.57 | 0.65 / 0.20 |
+| `lance_ref_small` | `zarr_small`'s objects | 3.83 / 1.28 | 3.47 / 3.42 | 0.69 / 0.22 |
+| `zarr_sharded` | plain objects | 2.66 / 1.77 | 6.54 / 6.58 | 0.13 / 0.12 |
+| `lance_sharded_blob` | Lance | 3.25 / 2.12 | 6.59 / 6.54 | 0.15 / 0.14 |
+| `lance_ref_sharded` | `zarr_sharded`'s objects | 3.34 / 2.06 | 6.56 / 6.49 | 0.16 / 0.15 |
+
+HTTP requests at concurrency 64, counted by the proxy
+([results/diag_workload_requests_ref.txt](results/diag_workload_requests_ref.txt)):
+
+| Layout | 20 AOIs | 128 patches | One full date |
+|---|---|---|---|
+| `zarr_small` | 1,356 | 281 | 256 |
+| `lance_ref_small` | 1,356 | 281 | 256 |
+| `lance_small` | 750 | 203 | 79 |
+| `zarr_sharded` | 696 | 287 | 4 |
+| `lance_ref_sharded` | 696 | 287 | 4 |
+
+- **A referenced layout sends exactly the requests and bytes of the Zarr it references.** Each
+  chunk is its own object, so Lance's merging of adjacent rows, which cuts `lance_small` to 750
+  requests, does not apply. The remaining time gap at concurrency 64, up to about 0.3 s, is the
+  same as for `lance_small` and sits on the client side, in the Python store.
+- **Blob reads now use as many threads as Zarr's concurrency.** The store used a fixed 16-thread
+  pool before. At concurrency 64 that took `lance_sharded_blob` from 2.42 s to 2.12 s on the AOIs,
+  against 1.77 s for sharded Zarr.
+
+### Through LanceDB Enterprise
+
+`LanceDBStore` reads a blob table through remote `BlobFile` handles, opened for every row when the
+store opens: one REST request per byte range, each served by the query node. Concurrency 64, with
+the in-Lance `lance_small` table run in the same session for contrast
+([results/run_enterprise_c64_ref_small.json](results/run_enterprise_c64_ref_small.json),
+[results/run_enterprise_c64_ref_sharded.json](results/run_enterprise_c64_ref_sharded.json),
+[results/run_enterprise_c64_ref_baseline.json](results/run_enterprise_c64_ref_baseline.json)):
+
+| Table | Workload | Cold | Disk | Memory | Direct |
+|---|---|---|---|---|---|
+| `lance_ref_small` | 20 AOIs | 2.07 s | 2.01 s | 1.97 s | 1.27 s |
+| `lance_ref_small` | 128 patches | 6.41 s | 6.41 s | 6.44 s | 3.45 s |
+| `lance_ref_small` | one full date | 0.32 s | 0.35 s | 0.33 s | 0.22 s |
+| `lance_ref_sharded` | 20 AOIs | 3.95 s | 2.95 s | 2.95 s | 2.03 s |
+| `lance_ref_sharded` | 128 patches | 12.90 s | 12.74 s | 12.84 s | 6.46 s |
+| `lance_ref_sharded` | one full date | 0.18 s | 0.16 s | 0.16 s | 0.13 s |
+| `lance_small`, bytes in Lance | 20 AOIs | 2.17 s | 0.60 s | 0.53 s | 1.31 s |
+| `lance_small`, bytes in Lance | 128 patches | 3.95 s | 0.42 s | 0.35 s | 3.52 s |
+| `lance_small`, bytes in Lance | one full date | 0.55 s | 0.11 s | 0.10 s | 0.20 s |
+
+- **Referenced bytes get no cache.** Cold, disk-warm and memory-warm reads take the same time,
+  because blob byte ranges go through the query node's blob route, not the plan executor.
+- **Each range costs more than a direct read.** A request does a descriptor take and then the
+  object read, so sequential reads such as the patches, two per window for shards, take about twice
+  as long as direct. ENT-3100's batched, cached blob ranges would cover referenced data too.
+- **Opening is slow for many rows.** Opening a remote handle for each of `lance_ref_small`'s 3,074
+  rows took about 18 s. Opening is outside the timings above.
+
 ## Lance gaps and development paths
 
 ### Fixed-size lists are not compressed in format 2.2
@@ -476,6 +585,13 @@ PROXY_COUNT_FILE=../results/proxy_counts_minio.txt uv run python diag_workload_r
 bash ../scripts/enterprise.sh start           # REST on :47410, database zarr
 uv run python run_enterprise.py --concurrency 64
 uv run python run_enterprise_writes.py --writers 1 4
+
+# plain Zarr referenced in place
+uv run python ../demo/reference_zarr.py      # local: correctness, size, re-index after an append
+uv run python build.py --target s3 --layouts zarr_small lance_ref_small lance_ref_sharded --tag _minio_ref
+uv run python run.py --target s3 --repeats 2 --concurrency 64 --tag _minio_ref --layouts \
+  icechunk_small zarr_small lance_small lance_ref_small zarr_sharded lance_sharded_blob lance_ref_sharded
+uv run python run_enterprise.py --layouts ent_ref_small lance_ref_small --tag _ref_small
 bash ../scripts/enterprise.sh stop
 bash ../scripts/s3_down.sh
 ```
@@ -490,3 +606,5 @@ bash ../scripts/s3_down.sh
 - File the `read_blob_ranges` descriptor issue on lance-format/lance.
 - Repeat with real Sentinel-2 tiles and real TESSERA embeddings.
 - Add a write path to the tensor view, so Zarr writes land as tensor rows.
+- Run the referenced layouts against real S3, and re-measure them through Enterprise once blob
+  byte ranges are batched and cached.

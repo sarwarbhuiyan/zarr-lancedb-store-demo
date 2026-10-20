@@ -1,0 +1,46 @@
+== concurrency 10
+layout               workload       requests      MB  seconds
+icechunk_small       20 AOIs            1357    93.5     3.79
+icechunk_small       128 patches         282    19.4     3.35
+icechunk_small       one full date       257    17.8     0.66
+zarr_small           20 AOIs            1356    93.3     3.55
+zarr_small           128 patches         281    19.4     3.19
+zarr_small           one full date       256    17.7     0.66
+lance_small          20 AOIs            1122    93.2     3.67
+lance_small          128 patches         203    19.3     3.30
+lance_small          one full date       214    17.7     0.69
+lance_ref_small      20 AOIs            1356    93.4     3.69
+lance_ref_small      128 patches         281    19.4     3.45
+lance_ref_small      one full date       256    17.7     0.69
+zarr_sharded         20 AOIs             696   193.3     2.50
+zarr_sharded         128 patches         287    36.5     6.31
+zarr_sharded         one full date         4    17.5     0.09
+lance_sharded_blob   20 AOIs             696   193.3     2.83
+lance_sharded_blob   128 patches         287    36.5     6.21
+lance_sharded_blob   one full date         4    17.5     0.13
+lance_ref_sharded    20 AOIs             696   193.3     3.03
+lance_ref_sharded    128 patches         287    36.5     6.27
+lance_ref_sharded    one full date         4    17.5     0.11
+== concurrency 64
+layout               workload       requests      MB  seconds
+icechunk_small       20 AOIs            1357    93.5     1.06
+icechunk_small       128 patches         282    19.4     3.19
+icechunk_small       one full date       257    17.8     0.17
+zarr_small           20 AOIs            1356    93.3     0.95
+zarr_small           128 patches         281    19.4     3.19
+zarr_small           one full date       256    17.7     0.14
+lance_small          20 AOIs             750    92.9     1.24
+lance_small          128 patches         203    19.3     3.37
+lance_small          one full date        79    17.6     0.18
+lance_ref_small      20 AOIs            1356    93.4     1.23
+lance_ref_small      128 patches         281    19.4     3.17
+lance_ref_small      one full date       256    17.7     0.21
+zarr_sharded         20 AOIs             696   193.3     1.58
+zarr_sharded         128 patches         287    36.5     6.75
+zarr_sharded         one full date         4    17.5     0.09
+lance_sharded_blob   20 AOIs             696   193.3     1.90
+lance_sharded_blob   128 patches         287    36.5     6.36
+lance_sharded_blob   one full date         4    17.5     0.10
+lance_ref_sharded    20 AOIs             696   193.3     1.80
+lance_ref_sharded    128 patches         287    36.5     6.33
+lance_ref_sharded    one full date         4    17.5     0.14

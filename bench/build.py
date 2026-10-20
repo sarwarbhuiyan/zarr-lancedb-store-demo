@@ -5,11 +5,13 @@ import os
 
 import numpy as np
 
-from common import LAYOUTS, ROOT, S3_DIRECT, Target, build, dir_size, reset_local, save, synthetic_cube
+from common import (LAYOUTS, ROOT, S3_DIRECT, Target, build, dir_size, reset_local, s3_objects, s3_prefix, save,
+                    synthetic_cube)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--target", choices=["local", "s3"], default="local")
 ap.add_argument("--layouts", nargs="*", default=list(LAYOUTS))
+ap.add_argument("--tag", default="", help="suffix for the results file")
 args = ap.parse_args()
 
 os.makedirs(ROOT, exist_ok=True)
@@ -27,6 +29,10 @@ for layout in args.layouts:
         path = f"{ROOT}/{layout}{ext}"
         r["size_mb"] = round(dir_size(path) / 1e6, 1)
         r["files"] = sum(len(f) for _, _, f in os.walk(path))
+    else:
+        objects = s3_objects(S3_DIRECT, s3_prefix(layout))
+        r["size_mb"] = round(sum(objects.values()) / 1e6, 3)
+        r["files"] = len(objects)
     print(r)
     rows.append(r)
-save(f"build_{args.target}", rows)
+save(f"build_{args.target}{args.tag}", rows)

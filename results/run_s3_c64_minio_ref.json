@@ -1,0 +1,170 @@
+[
+  {
+    "layout": "icechunk_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 1.053,
+    "store_gets": 1359,
+    "ranged_gets": 0,
+    "mb_from_store": 92.6
+  },
+  {
+    "layout": "icechunk_small",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 3.467,
+    "store_gets": 284,
+    "ranged_gets": 0,
+    "mb_from_store": 19.2
+  },
+  {
+    "layout": "icechunk_small",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.165,
+    "store_gets": 259,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "zarr_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 0.997,
+    "store_gets": 1359,
+    "ranged_gets": 0,
+    "mb_from_store": 92.6
+  },
+  {
+    "layout": "zarr_small",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 3.403,
+    "store_gets": 284,
+    "ranged_gets": 0,
+    "mb_from_store": 19.2
+  },
+  {
+    "layout": "zarr_small",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.142,
+    "store_gets": 259,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "lance_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 1.302,
+    "store_gets": 1359,
+    "ranged_gets": 0,
+    "mb_from_store": 92.6
+  },
+  {
+    "layout": "lance_small",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 3.565,
+    "store_gets": 284,
+    "ranged_gets": 0,
+    "mb_from_store": 19.2
+  },
+  {
+    "layout": "lance_small",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.199,
+    "store_gets": 259,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "lance_ref_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 1.276,
+    "store_gets": 1359,
+    "ranged_gets": 0,
+    "mb_from_store": 92.6
+  },
+  {
+    "layout": "lance_ref_small",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 3.423,
+    "store_gets": 284,
+    "ranged_gets": 0,
+    "mb_from_store": 19.2
+  },
+  {
+    "layout": "lance_ref_small",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.219,
+    "store_gets": 259,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "zarr_sharded",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 1.772,
+    "store_gets": 699,
+    "ranged_gets": 696,
+    "mb_from_store": 192.9
+  },
+  {
+    "layout": "zarr_sharded",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 6.584,
+    "store_gets": 290,
+    "ranged_gets": 287,
+    "mb_from_store": 36.3
+  },
+  {
+    "layout": "zarr_sharded",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.119,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 2.123,
+    "store_gets": 699,
+    "ranged_gets": 696,
+    "mb_from_store": 192.9
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 6.54,
+    "store_gets": 290,
+    "ranged_gets": 287,
+    "mb_from_store": 36.3
+  },
+  {
+    "layout": "lance_sharded_blob",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.14,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  },
+  {
+    "layout": "lance_ref_sharded",
+    "workload": "aoi_20x_100px_all_dates",
+    "median_s": 2.062,
+    "store_gets": 699,
+    "ranged_gets": 696,
+    "mb_from_store": 192.9
+  },
+  {
+    "layout": "lance_ref_sharded",
+    "workload": "patches_128x_32px_one_date",
+    "median_s": 6.49,
+    "store_gets": 290,
+    "ranged_gets": 287,
+    "mb_from_store": 36.3
+  },
+  {
+    "layout": "lance_ref_sharded",
+    "workload": "full_date_14x1024x1024",
+    "median_s": 0.146,
+    "store_gets": 7,
+    "ranged_gets": 0,
+    "mb_from_store": 17.5
+  }
+]

@@ -14,6 +14,7 @@ ap.add_argument("--target", choices=["local", "s3"], default="local")
 ap.add_argument("--layouts", nargs="*", default=list(LAYOUTS))
 ap.add_argument("--repeats", type=int, default=3)
 ap.add_argument("--concurrency", type=int, default=10, help="zarr async.concurrency")
+ap.add_argument("--tag", default="", help="suffix for the results file")
 args = ap.parse_args()
 zarr.config.set({"async.concurrency": args.concurrency})
 
@@ -37,4 +38,4 @@ for layout in args.layouts:
         }
         print(row, flush=True)
         results.append(row)
-save(f"run_{args.target}_c{args.concurrency}", results)
+save(f"run_{args.target}_c{args.concurrency}{args.tag}", results)

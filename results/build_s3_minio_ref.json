@@ -1,0 +1,20 @@
+[
+  {
+    "layout": "zarr_small",
+    "write_s": 4.42,
+    "size_mb": 209.776,
+    "files": 3074
+  },
+  {
+    "layout": "lance_ref_small",
+    "write_s": 0.25,
+    "size_mb": 0.151,
+    "files": 3
+  },
+  {
+    "layout": "lance_ref_sharded",
+    "write_s": 0.07,
+    "size_mb": 0.006,
+    "files": 3
+  }
+]

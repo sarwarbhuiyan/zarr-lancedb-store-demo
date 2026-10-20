@@ -1,0 +1,38 @@
+[
+  {
+    "layout": "ent_ref_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "cold_s": 2.071,
+    "disk_s": 2.009,
+    "memory_s": 1.9705
+  },
+  {
+    "layout": "ent_ref_small",
+    "workload": "patches_128x_32px_one_date",
+    "cold_s": 6.41,
+    "disk_s": 6.407,
+    "memory_s": 6.436999999999999
+  },
+  {
+    "layout": "ent_ref_small",
+    "workload": "full_date_14x1024x1024",
+    "cold_s": 0.317,
+    "disk_s": 0.353,
+    "memory_s": 0.3305
+  },
+  {
+    "layout": "lance_ref_small",
+    "workload": "aoi_20x_100px_all_dates",
+    "direct_s": 1.2705
+  },
+  {
+    "layout": "lance_ref_small",
+    "workload": "patches_128x_32px_one_date",
+    "direct_s": 3.449
+  },
+  {
+    "layout": "lance_ref_small",
+    "workload": "full_date_14x1024x1024",
+    "direct_s": 0.21600000000000003
+  }
+]
