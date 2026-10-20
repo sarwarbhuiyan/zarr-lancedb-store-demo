@@ -34,11 +34,13 @@ not show.
   needs a real S3 run.
 - **Grid-cell filters plus vector search work in LanceDB.** H3 and S2 cell IDs stored as uint64
   with BTREE indexes turn "inside this parent cell" and "inside this S2 covering" into range
-  filters. The query plan shows the BTREE lookup feeding the vector search as a prefilter,
-  including S2 IDs above the signed 64-bit range. Results matched brute force exactly.
+  filters. Both returned exactly the rows found by checking every cell in Python, including S2
+  IDs above the signed 64-bit range, and the query plan shows the BTREE lookup feeding the vector
+  search as its prefilter.
 - **Through LanceDB Enterprise, a warm cache made small-chunk and tensor reads two to nine times
-  faster than direct reads.** It needs the reader to pin a table version; unpinned, each read pays an object-store round trip
-  for a version check. Cold reads are slower than direct because the plan executor's disk cache
+  faster than direct reads.** The small chunks sit in a `large_binary` column. The gain needs the
+  reader to pin a table version; unpinned, each read pays an object-store round trip for a
+  version check. Cold reads are slower than direct because the plan executor's disk cache
   fetches misses in 32 KiB requests; a larger `--disk-cache-page-size` fixes that today.
 - **Writes through Enterprise work, including MemWAL.** With 4 concurrent writers, MemWAL was the
   fastest commit path and created no Lance version per commit. Its 16 MiB request cap surfaces as
@@ -50,6 +52,10 @@ not show.
   versions and tags work as snapshots of the plain store when data is only appended; an in-place
   overwrite breaks old versions. Through Enterprise, referenced bytes bypass the cache: cold and
   warm reads take the same time, 1.3 to 2 times longer than direct.
+- **Blob V2 reads through Enterprise are not cached yet**, whether the bytes are stored in Lance or
+  referenced, because the query node serves blob byte ranges itself. ENT-3108 tracks serving them
+  through the plan executor's cache and ENT-3100 batching them. Until then, chunks that need the
+  cache belong in a `large_binary` column.
 - **Two Lance gaps showed up, both with clear paths.** Format 2.2 compresses scalar, binary and
   string columns, but never fixed-size lists, the type a tensor or chip column uses;
   [lance-format/lance#5021](https://github.com/lance-format/lance/issues/5021) covers it.
@@ -122,8 +128,8 @@ What it checks, from [results/dual_table.json](results/dual_table.json):
 | Check | Result |
 |---|---|
 | Vector search, then xarray windows of 100 × 100 px × 12 dates around 5 hits, from the tagged snapshot | windows equal the source cube |
-| H3 resolution-9 parent as one `BETWEEN` on the resolution-13 column | 1,094 rows, brute force 1,094 |
-| S2 covering of 4 cells as an OR of `BETWEEN` ranges, largest ID 10550813662019321855 | 50,234 rows, brute force 50,234 |
+| H3 resolution-9 parent as one `BETWEEN` on the resolution-13 column | 1,094 rows; checking every cell in Python finds 1,094 |
+| S2 covering of 4 cells as an OR of `BETWEEN` ranges, largest ID 10550813662019321855 | 50,234 rows; checking every cell in Python finds 50,234 |
 | Both filters as vector-search prefilters | `ScalarIndexQuery` on the BTREE feeds the ANN search ([plans](results/dual_table_plans.txt)) |
 | Pixels per H3 resolution-11 cell | mean 22, min 1, max 25 |
 | Embeddings stored twice, as the design does | 134 MB raw float32 in Table 1, 34 MB raw int8 in Table 2 |
@@ -369,7 +375,8 @@ descriptor take, then a read from object storage, with no plan executor and so n
 Repeated 2 KB and 64 KB range reads took 46 ms each, the same as the first, against 2.1 ms for a
 warm pinned take of a binary row. The SDK's remote `fetch_blob_ranges`, which would batch ranges,
 raises "not supported". So sharded Zarr in a blob column reads through Enterprise one range at a
-time at storage latency; the binary and tensor tables use the cached take path. Filed as ENT-3100.
+time at storage latency; the binary and tensor tables use the cached take path. Batching is filed
+as ENT-3100 and caching as ENT-3108.
 
 ## Plain Zarr referenced in place
 
@@ -468,7 +475,8 @@ the in-Lance `lance_small` table run in the same session for contrast
   because blob byte ranges go through the query node's blob route, not the plan executor.
 - **Each range costs more than a direct read.** A request does a descriptor take and then the
   object read, so sequential reads such as the patches, two per window for shards, take about twice
-  as long as direct. ENT-3100's batched, cached blob ranges would cover referenced data too.
+  as long as direct. Cached blob ranges (ENT-3108) and batched ones (ENT-3100) would cover
+  referenced data too.
 - **Opening is slow for many rows.** Opening a remote handle for each of `lance_ref_small`'s 3,074
   rows took about 18 s. Opening is outside the timings above.
 
@@ -491,7 +499,9 @@ empty caches, and reads each workload twice
 The query node serves blob byte ranges itself, so the plan executor's cache never sees them,
 whether the blob bytes live in Lance or elsewhere. Each range costs two object-store requests,
 287 ranges sending 574, which is why these reads take about twice as long as direct. Only
-binary and tensor columns get the cache.
+binary (`large_binary`) and tensor columns get the cache today. ENT-3108 tracks routing both blob
+routes through the plan executor so Blob V2 reads are cached too; until it lands, chunks that need
+the cache belong in a `large_binary` column.
 
 ## Lance gaps and development paths
 
@@ -628,4 +638,4 @@ bash ../scripts/s3_down.sh
 - Repeat with real Sentinel-2 tiles and real TESSERA embeddings.
 - Add a write path to the tensor view, so Zarr writes land as tensor rows.
 - Run the referenced layouts against real S3, and re-measure them through Enterprise once blob
-  byte ranges are batched and cached.
+  byte ranges are cached and batched (ENT-3108, ENT-3100).
